@@ -9,7 +9,7 @@ import {
 /* =========================
    ENV + CONSTANTS
 ========================= */
-const SITE_TITLE = "PimPamPof — Dierenspel";
+const SITE_TITLE = "Dierenspel";
 const URL_PIMPAMPOF =
     (import.meta?.env?.VITE_PIMPAMPOF_URL || "").trim() || "https://www.pimpampof.nl/";
 
@@ -43,35 +43,18 @@ const GlobalStyle = () => (
     color: #fff;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   }
-  #root {
-    width: min(100%, 720px);
-    margin: 0 auto;
-    padding: 24px 16px;
-    box-sizing: border-box;
-  }
+  #root { width: min(100%, 720px); margin: 0 auto; padding: 24px 16px; box-sizing: border-box; }
   input, button, textarea { font-family: inherit; }
 
-  /* ==== oude UI badges/teksten ==== */
-  .badge {
-    display:inline-flex; align-items:center; gap:8px;
-    padding:6px 10px; border-radius:999px;
-    background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
-    font-size: 12px;
-  }
+  .badge { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+    background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); font-size: 12px; }
   .muted { color: rgba(255,255,255,0.7); font-size:12px; }
   .h1 { margin:0 0 6px 0; font-size:28px; font-weight:900; }
-  .card {
-    width: min(92vw, 720px);
-    background: #111;
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
-  }
+  .card { width: min(92vw, 720px); background: #111; border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
   .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center; }
-  .input {
-    padding:10px 12px; border-radius:12px;
-    border:1px solid rgba(255,255,255,.15);
-    background:rgba(255,255,255,.06); color:#fff; outline:none;
-  }
+  .input { padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.15);
+    background:rgba(255,255,255,.06); color:#fff; outline:none; }
   .center { display:flex; justify-content:center; }
   .letterBig{
     display:grid; place-items:center; width:120px; height:120px; border-radius:28px;
@@ -81,22 +64,14 @@ const GlobalStyle = () => (
     margin:8px auto 12px;
   }
 
-  /* ==== GROENE KNOPPEN (oude stijl) ==== */
-  .btn{
-    padding:10px 14px; border:none; border-radius:12px;
-    background:#16a34a; color:#fff; font-weight:800; cursor:pointer;
-  }
+  /* Groene knoppen */
+  .btn{ padding:10px 14px; border:none; border-radius:12px; background:#16a34a; color:#fff; font-weight:800; cursor:pointer; }
   .btn.alt{ background:#065f46; color:#eafff6 }
   .btn.warn{ background:#dc2626; color:#fff }
   .btn:disabled{ opacity:.6; cursor:not-allowed }
 
-  /* toasts/flash */
-  @keyframes pofPop {
-    0% { transform: scale(0.6); opacity: 0; }
-    20% { transform: scale(1.12); opacity: 1; }
-    50% { transform: scale(1.0); }
-    100% { transform: scale(0.9); opacity: 0; }
-  }
+  /* Pof popup */
+  @keyframes pofPop { 0%{transform:scale(.6);opacity:0} 20%{transform:scale(1.12);opacity:1} 50%{transform:scale(1)} 100%{transform:scale(.9);opacity:0} }
   .pof-toast { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9999; }
   .pof-bubble {
     background: radial-gradient(circle at 30% 30%, rgba(34,197,94,0.96), rgba(16,185,129,0.92));
@@ -104,35 +79,26 @@ const GlobalStyle = () => (
     box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: pofPop 1200ms ease-out forwards; letter-spacing: .5px;
   }
 
-  @keyframes answerFlash {
-    0% { transform: scale(.9); opacity: 0 }
-    10% { transform: scale(1.04); opacity: 1 }
-    90% { transform: scale(1.0); opacity: 1 }
-    100% { transform: scale(.98); opacity: 0 }
-  }
+  /* Antwoord flash (groen) */
+  @keyframes answerFlash { 0%{transform:scale(.9);opacity:0} 10%{transform:scale(1.04);opacity:1} 90%{transform:scale(1.0);opacity:1} 100%{transform:scale(.98);opacity:0} }
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
-    background: radial-gradient(circle at 30% 30%, rgba(59,130,246,.95), rgba(37,99,235,.92));
-    color: #051026; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
+    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92));
+    color: #041507; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
+    border: 1px solid rgba(255,255,255,.18);
   }
 
-  @keyframes scoreToast {
-    0% { transform: translateY(8px); opacity: 0; }
-    15% { transform: translateY(0); opacity: 1; }
-    85% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(-6px); opacity: 0; }
-  }
+  /* Score toast */
+  @keyframes scoreToast { 0%{transform:translateY(8px);opacity:0} 15%{transform:translateY(0);opacity:1} 85%{transform:translateY(0);opacity:1} 100%{transform:translateY(-6px);opacity:0} }
   .score-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 9998; pointer-events: none; animation: scoreToast 1400ms ease-out forwards; }
   .score-bubble { padding: 10px 14px; border-radius: 999px; font-weight: 800; box-shadow: 0 12px 28px rgba(0,0,0,.35); font-size: 16px; }
   .score-plus  { background: linear-gradient(90deg, #22c55e, #16a34a); color: #041507; }
   .score-minus { background: linear-gradient(90deg, #ef4444, #dc2626); color: #180404; }
 
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index: 9995; }
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9995}
   .dialog{width:min(92vw, 720px);background:#0f172a;border:1px solid #1f2937;border-radius:16px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
-  .table { width:100%; border-collapse: collapse; }
-  .table th, .table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
-  .table th { font-weight: 700; }
+  .table{width:100%;border-collapse:collapse} .table th,.table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.12);text-align:left} .table th{font-weight:700}
   `}</style>
 );
 
@@ -204,8 +170,6 @@ function useOnline() {
 function Section({ title, children }) {
     return (<div style={styles.section}>{title && <h2 style={styles.sectionTitle}>{title}</h2>}{children}</div>);
 }
-
-// --- Reusable groene Button (koppelt aan .btn classes uit GlobalStyle) ---
 function Button({ children, variant, className = "", ...props }) {
     const base =
         variant === "alt" ? "btn alt" :
@@ -221,8 +185,8 @@ function Button({ children, variant, className = "", ...props }) {
    COMPONENT
 ========================= */
 export default function DierenspelApp() {
-    const online = useOnline();
     useEffect(() => { document.title = SITE_TITLE; }, []);
+    const online = useOnline();
 
     const [playerName, setPlayerName] = useState(() => localStorage.getItem(NAME_KEY) || "");
     useEffect(() => { localStorage.setItem(NAME_KEY, playerName || ""); }, [playerName]);
@@ -233,6 +197,8 @@ export default function DierenspelApp() {
     const [roomCode, setRoomCode] = useState("");
     const [room, setRoom] = useState(null);
     const [isHost, setIsHost] = useState(false);
+
+    // input/UX
     const [answer, setAnswer] = useState("");
     const [apiState, setApiState] = useState({ status: "idle", msg: "" });
 
@@ -243,6 +209,10 @@ export default function DierenspelApp() {
     const [scoreToast, setScoreToast] = useState({ show: false, text: "", type: "plus" });
     const [flash, setFlash] = useState(null);
     const flashedIdRef = useRef(null);
+
+    // leaderboard
+    const [leaderOpen, setLeaderOpen] = useState(false);
+    const [leaderData, setLeaderData] = useState(null);
 
     // refs
     const connIdRef = useRef(null);
@@ -330,14 +300,16 @@ export default function DierenspelApp() {
             started: false,
             lastLetter: "?",
             turn: playerId,
-            turnStartAt: solo ? null : Date.now(),
+            turnStartAt: null,          // << geen timer voor start
             cooldownEndAt: null,
             scores: {},
             stats: {},
             answers: [],
             used: {},
+            paused: false,
+            pausedAt: null,
             phase: "answer",
-            version: 1
+            version: 2
         };
         await set(ref(db, `rooms/${code}`), obj);
         setIsHost(true);
@@ -354,26 +326,19 @@ export default function DierenspelApp() {
 
         await runTransaction(r, (data) => {
             if (!data) return data;
-            if (!data.players) data.players = {};
+            data.players ??= {};
             data.players[playerId] = { name: playerName || "Speler", joinedAt: serverTimestamp() };
-
-            if (!data.participants) data.participants = {};
+            data.participants ??= {};
             data.participants[playerId] = data.participants[playerId] || { name: playerName || "Speler", firstJoinedAt: serverTimestamp() };
             data.participants[playerId].name = playerName || data.participants[playerId].name;
-
-            if (!data.playersOrder) data.playersOrder = [];
+            data.playersOrder ??= [];
             if (!data.playersOrder.includes(playerId)) data.playersOrder.push(playerId);
-
-            if (!data.scores) data.scores = {};
-            if (!data.stats) data.stats = {};
-            if (!data.answers) data.answers = [];
-            if (!data.used) data.used = {};
-            if (!data.lastLetter) data.lastLetter = "?";
-            if (!data.phase) { data.phase = "answer"; data.turnStartAt = data.solo ? null : Date.now(); data.cooldownEndAt = null; }
-
+            data.scores ??= {}; data.stats ??= {}; data.answers ??= []; data.used ??= {};
+            data.lastLetter ??= "?";
+            data.paused ??= false; data.pausedAt ??= null;
+            data.phase ??= "answer";
             if (!data.turn || !data.players[data.turn]) data.turn = data.playersOrder[0] || playerId;
             if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder[0] || playerId;
-
             return data;
         });
 
@@ -389,7 +354,7 @@ export default function DierenspelApp() {
             lastLetter: "?",
             turn: room.playersOrder?.[0] || room.hostId,
             phase: "answer",
-            turnStartAt: room.solo ? null : Date.now(),
+            turnStartAt: Date.now(),    // timer gaat nu pas lopen
             cooldownEndAt: null
         });
         setTimeout(() => inputRef.current?.focus(), 0);
@@ -405,20 +370,40 @@ export default function DierenspelApp() {
         return data.turn;
     }
 
+    // helper: check of woord begint met vereiste letter
+    function beginsWithRequiredLetter(required, word) {
+        if (!required || required === "?") return true; // eerste woord nog vrij
+        const s = (word || "").toUpperCase().replace(/[^A-ZÁÉÍÓÚÄËÏÖÜÇÑ]/g, "");
+        return s[0] === required;
+    }
+
     async function submitAnswerOnline() {
-        if (!room) return;
+        if (!room || !room.started) { alert("Start eerst het spel."); return; }
+        if (room.paused) { alert("Spel is gepauzeerd."); return; }
+        if (!isMyTurn) return;
+
         const w = (answer || "").trim();
         if (!w) return;
 
+        // Vereiste beginletter verplicht
+        if (!beginsWithRequiredLetter(room.lastLetter || "?", w)) {
+            alert(`Het woord moet beginnen met "${room.lastLetter}".`);
+            return;
+        }
+
+        // repeat protect
         const key = normalizeAnimalKey(w);
         if (key && usedKeysSet.has(key)) {
             alert("Dit dier is al geweest in deze room.");
             return;
         }
 
-        const elapsed = Math.max(0, Date.now() - (room?.turnStartAt ?? Date.now()));
+        // tijd & punten (bevries tijdens pauze)
+        const nowTs = Date.now();
+        const start = room.turnStartAt ?? nowTs;
+        const elapsed = Math.max(0, (room.paused && room.pausedAt ? room.pausedAt : nowTs) - start);
         const basePoints = isMP ? calcPoints(elapsed) : 0;
-        const isDouble = isDoublePof(room?.lastLetter || "?", w);
+        const isDouble = isDoublePof(room?.lastLetter || "?", w); // bonus wanneer zelfde als vereiste
         const bonus = isMP && isDouble ? DOUBLE_POF_BONUS : 0;
         const totalGain = isMP ? (basePoints + bonus) : 0;
 
@@ -435,12 +420,20 @@ export default function DierenspelApp() {
             }
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
+            if (!data.started) return data;
+            if (data.paused) return data;
 
+            // verplicht beginsWith check (server side)
+            const req = data.lastLetter || "?";
+            const txt = (w || "").toUpperCase().replace(/[^A-ZÁÉÍÓÚÄËÏÖÜÇÑ]/g, "");
+            if (req && req !== "?" && (!txt[0] || txt[0] !== req)) return data;
+
+            // punten/stats (MP)
             if (!data.solo) {
-                if (!data.scores) data.scores = {};
+                data.scores ??= {};
                 data.scores[playerId] = (data.scores[playerId] || 0) + totalGain;
 
-                if (!data.stats) data.stats = {};
+                data.stats ??= {};
                 const s = data.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
                 s.totalTimeMs += elapsed;
                 s.answeredCount += 1;
@@ -448,8 +441,9 @@ export default function DierenspelApp() {
                 data.stats[playerId] = s;
             }
 
-            if (!data.answers) data.answers = [];
-            if (!data.used) data.used = {};
+            // geschiedenis + used
+            data.answers ??= [];
+            data.used ??= {};
             const id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`;
             data.answers.push({
                 id,
@@ -464,9 +458,10 @@ export default function DierenspelApp() {
             if (key) data.used[key] = true;
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
+            // voortgang
             data.lastLetter = letterToSet || "?";
+            // volgende beurt + cooldown
             advanceTurn(data);
-
             if (!data.solo) {
                 data.phase = "cooldown";
                 data.cooldownEndAt = Date.now() + COOLDOWN_MS;
@@ -486,20 +481,32 @@ export default function DierenspelApp() {
         setTimeout(() => inputRef.current?.focus(), 0);
     }
 
-    async function leaveRoom() {
-        if (!roomCode) { setRoom(null); setRoomCode(""); setIsHost(false); return; }
-        const r = ref(db, `rooms/${roomCode}`);
-        await runTransaction(r, (data) => {
-            if (!data) return data;
-            if (data.players && data.players[playerId]) delete data.players[playerId];
-            if (Array.isArray(data.playersOrder)) data.playersOrder = data.playersOrder.filter(id => id !== playerId && data.players && data.players[id]);
-            const ids = data.players ? Object.keys(data.players) : [];
-            if (ids.length === 0) return null;
-            if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder?.[0] || ids[0];
-            if (!data.turn || !data.players[data.turn] || data.turn === playerId) data.turn = data.playersOrder?.[0] || data.hostId || ids[0];
-            return data;
+    // Leaderboard helpers
+    function buildLeaderboardSnapshot(rm) {
+        const par = rm.participants ? Object.keys(rm.participants) : [];
+        const arr = par.map(id => {
+            const name = rm.participants[id]?.name || rm.players?.[id]?.name || "Speler";
+            const score = (!rm.solo && rm.scores && rm.scores[id]) || 0;
+            const st = (rm.stats && rm.stats[id]) || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
+            const avg = st.answeredCount > 0 ? (st.totalTimeMs / st.answeredCount) : null;
+            return { id, name, score, avgMs: avg, answered: st.answeredCount || 0, jilla: st.jillaCount || 0, dpf: st.doubleCount || 0 };
         });
+        arr.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+        return arr;
+    }
 
+    async function leaveRoomCore() {
+        if (!roomCode) return;
+        await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
+            if (!d) return d;
+            if (d.players && d.players[playerId]) delete d.players[playerId];
+            if (Array.isArray(d.playersOrder)) d.playersOrder = d.playersOrder.filter(id => id !== playerId && d.players && d.players[id]);
+            const ids = d.players ? Object.keys(d.players) : [];
+            if (ids.length === 0) return null;
+            if (!d.hostId || !d.players[d.hostId]) d.hostId = d.playersOrder?.[0] || ids[0];
+            if (!d.turn || !d.players[d.turn] || d.turn === playerId) d.turn = d.playersOrder?.[0] || d.hostId || ids[0];
+            return d;
+        });
         if (connIdRef.current) {
             const myConnRef = ref(db, `rooms/${roomCode}/presence/${playerId}/${connIdRef.current}`);
             remove(myConnRef).catch(() => { });
@@ -508,16 +515,25 @@ export default function DierenspelApp() {
         setRoom(null); setRoomCode(""); setIsHost(false);
     }
 
-    // helpers voor knoppen (oude UI verwacht deze handlers)
+    async function onLeaveClick() {
+        if (room && (room.participants || room.players)) {
+            const snap = buildLeaderboardSnapshot(room);
+            setLeaderData(snap);
+            setLeaderOpen(true);
+        }
+        await leaveRoomCore();
+    }
+
+    // Pauze / Hervat: pauze "bevriest" timers, en bij hervatten verschuiven we server-timers
     async function pauseGame() {
-        if (!roomCode || !room) return;
+        if (!roomCode || !room || room.paused) return;
         await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
             if (!d || d.paused) return d;
             d.paused = true; d.pausedAt = Date.now(); return d;
         });
     }
     async function resumeGame() {
-        if (!roomCode || !room) return;
+        if (!roomCode || !room || !room.paused) return;
         await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
             if (!d || !d.paused) return d;
             const delta = Date.now() - (d.pausedAt || Date.now());
@@ -526,18 +542,15 @@ export default function DierenspelApp() {
             d.paused = false; d.pausedAt = null; return d;
         });
     }
-    async function onLeaveClick() { await leaveRoom(); }
+
+    // API check (dummy)
     async function checkAnimalViaAPI() {
         const q = (answer || "").trim();
         if (!q) return setApiState({ status: "idle", msg: "" });
         setApiState({ status: "checking", msg: "Bezig met controleren…" });
-        // Plaats hier je echte API-call indien gewenst
         setTimeout(() => setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden in database" }), 400);
     }
-    async function useJilla() {
-        // In deze versie geen jail-logic; je kunt hier later uitbreiden
-        // alert("Jilla is (nog) niet geactiveerd.");
-    }
+    function useJilla() { /* optioneel later */ }
 
     /* ---------- cooldown tick ---------- */
     const inCooldown = room?.phase === "cooldown" && !room?.solo;
@@ -558,9 +571,14 @@ export default function DierenspelApp() {
         }
     }, [roomCode, room?.phase, room?.cooldownEndAt, now, room]);
 
-    const answerElapsedMs = (!room?.solo && room?.phase === "answer" && room?.turnStartAt)
-        ? Math.max(0, now - room.turnStartAt) : 0;
-    const potentialPoints = !room?.solo ? calcPoints(answerElapsedMs) : 0;
+    // UI: elapsed en punten moeten bevriezen als paused, en niks vóór start
+    const answerElapsedMs = (!room?.solo && room?.started && room?.phase === "answer" && room?.turnStartAt)
+        ? Math.max(0, (room?.paused && room?.pausedAt ? room.pausedAt : now) - room.turnStartAt)
+        : 0;
+    const potentialPoints = (!room?.solo && room?.started) ? calcPoints(answerElapsedMs) : 0;
+
+    // Submit blokkeren wanneer het niet met vereiste letter begint
+    const blocksRequiredLetter = !!(room?.started && requiredLetter && requiredLetter !== "?" && answer.trim() && !beginsWithRequiredLetter(requiredLetter, answer));
 
     /* ---------- UI ---------- */
     return (
@@ -585,7 +603,7 @@ export default function DierenspelApp() {
 
                         {!isOnlineRoom ? (
                             <>
-                                <Button onClick={createRoom} disabled={!online}>Room aanmaken</Button>
+                                <Button onClick={() => createRoom({ solo: false })} disabled={!online}>Room aanmaken</Button>
                                 <input
                                     className="input"
                                     placeholder="Room code"
@@ -635,7 +653,7 @@ export default function DierenspelApp() {
 
                             {room?.paused && <span className="badge">⏸️ Gepauzeerd</span>}
 
-                            {isOnlineRoom && !room?.solo && (
+                            {isOnlineRoom && room?.started && !room?.solo && (
                                 inCooldown
                                     ? <span className="badge">⏳ Volgende ronde over {Math.ceil(cooldownLeftMs / 1000)}s</span>
                                     : <>
@@ -659,11 +677,11 @@ export default function DierenspelApp() {
                                         room?.paused ? "Gepauzeerd…"
                                             : !isMyTurn ? "Niet jouw beurt"
                                                 : inCooldown ? "Wachten…"
-                                                    : "Typ een dier en druk Enter"
+                                                    : requiredLetter ? `Moet beginnen met "${requiredLetter}"` : "Typ een dier en druk Enter"
                                     }
                                     value={answer}
                                     onChange={(e) => { setAnswer(e.target.value); setApiState({ status: "idle", msg: "" }); }}
-                                    onKeyDown={(e) => { if (e.key === "Enter") submitAnswerOnline(); }}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !blocksRequiredLetter) submitAnswerOnline(); }}
                                     disabled={!isMyTurn || inCooldown || room?.paused}
                                 />
                             </div>
@@ -672,10 +690,11 @@ export default function DierenspelApp() {
                                 <Button variant="alt" onClick={checkAnimalViaAPI} disabled={!answer.trim() || room?.paused}>
                                     Check dier (API)
                                 </Button>
-                                {isMyTurn && !inCooldown && !room?.paused && (
-                                    <Button variant="alt" onClick={useJilla}>Jilla (skip)</Button>
-                                )}
-                                <Button onClick={submitAnswerOnline} disabled={!isMyTurn || inCooldown || room?.paused}>
+                                <Button
+                                    onClick={submitAnswerOnline}
+                                    disabled={!isMyTurn || inCooldown || room?.paused || blocksRequiredLetter}
+                                    title={blocksRequiredLetter ? `Moet beginnen met "${requiredLetter}"` : "Indienen"}
+                                >
                                     Indienen
                                 </Button>
                             </div>
@@ -709,7 +728,7 @@ export default function DierenspelApp() {
                     )}
                 </div>
 
-                {/* SPELERS */}
+                {/* Spelers */}
                 {isOnlineRoom && room?.participants && (
                     <Section title="Spelers">
                         <ul style={styles.list}>
@@ -741,7 +760,7 @@ export default function DierenspelApp() {
                     </Section>
                 )}
 
-                {/* GESCHIEDENIS */}
+                {/* Geschiedenis */}
                 {isOnlineRoom && room?.answers && room.answers.length > 0 && (
                     <Section title="Antwoorden">
                         <ul style={styles.list}>
@@ -783,10 +802,37 @@ export default function DierenspelApp() {
                 </div>
             )}
 
-            {/* Nieuw: answer flash */}
+            {/* Groen answer flash */}
             {flash && (
                 <div className="answer-flash">
                     <div className="answer-bubble">{flash.text}</div>
+                </div>
+            )}
+
+            {/* Leaderboard overlay */}
+            {leaderOpen && leaderData && (
+                <div className="overlay" onClick={() => setLeaderOpen(false)}>
+                    <div className="dialog" onClick={e => e.stopPropagation()}>
+                        <h2 style={{ marginTop: 0, marginBottom: 8 }}>🏆 Leaderboard</h2>
+                        <table className="table">
+                            <thead><tr><th>#</th><th>Speler</th><th>Punten</th><th>Gem. tijd / antwoord</th><th>Jilla</th><th>Dubble pof</th></tr></thead>
+                            <tbody>
+                                {leaderData.map((r, i) => (
+                                    <tr key={r.id}>
+                                        <td>{i + 1}</td>
+                                        <td>{r.name}</td>
+                                        <td>{r.score}</td>
+                                        <td>{r.avgMs == null ? "—" : `${(r.avgMs / 1000).toFixed(1)}s`}</td>
+                                        <td>{r.jilla}</td>
+                                        <td>{r.dpf}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+                            <Button variant="alt" onClick={() => setLeaderOpen(false)}>Sluiten</Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </>
