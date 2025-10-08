@@ -502,120 +502,173 @@ export default function DierenspelApp() {
         <>
             <GlobalStyle />
             <div style={styles.wrap}>
-                {/* ───── BEGIN: vervang je bestaande <header> door dit blok ───── */}
+                {/* Header */}
                 <div className="card" style={{ marginBottom: 12 }}>
                     <h1 className="h1">{SITE_TITLE}</h1>
                     <p className="muted" style={{ marginTop: 0 }}>
-                        Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter
-                        wordt de <b>laatste letter</b> van jouw woord.
+                        Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter wordt de <b>laatste letter</b> van jouw woord.
                     </p>
-
                     <div className="row">
-                        {/* Naamveld alleen tonen vóór start */}
                         {!room?.started && (
                             <input
                                 className="input"
                                 placeholder="Jouw naam"
                                 value={playerName}
-                                onChange={(e) => setPlayerName(e.target.value)}
+                                onChange={e => setPlayerName(e.target.value)}
                             />
                         )}
 
-                        {/* Niet in een room → maak/join */}
                         {!isOnlineRoom ? (
                             <>
-                                <button className="btn" onClick={() => createRoom({ solo: false })} disabled={!online}>
-                                    Room aanmaken
-                                </button>
-
+                                <button className="btn" onClick={createRoom} disabled={!online}>Room aanmaken</button>
                                 <input
                                     className="input"
                                     placeholder="Room code"
                                     value={roomCodeInput}
-                                    onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                                    onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
                                 />
-
-                                <button className="btn alt" onClick={joinRoom} disabled={!online}>
-                                    Join
-                                </button>
+                                <button className="btn alt" onClick={joinRoom} disabled={!online}>Join</button>
                             </>
                         ) : (
                             <>
-                                {/* In room */}
                                 {!room?.started && isHost && (
-                                    <button className="btn" onClick={startGame}>
-                                        Start spel
-                                    </button>
+                                    <button
+                                        className="btn"
+                                        onClick={async () => {
+                                            await update(ref(db, `rooms_animals/${roomCode}`), {
+                                                started: true, lastLetter: "?", phase: "answer",
+                                                turn: room.playersOrder?.[0] || room.hostId,
+                                                turnStartAt: Date.now(), cooldownEndAt: null
+                                            });
+                                            setTimeout(() => inputRef.current?.focus(), 0);
+                                        }}
+                                    >Start spel</button>
                                 )}
-
                                 {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
                                 {room?.started && <span className="badge">Multiplayer actief</span>}
 
-                                <button className="btn warn" onClick={leaveRoom}>
-                                    Leave
-                                </button>
+                                {/* Pauze / Hervat */}
+                                {room?.started && !room?.paused && (
+                                    <button className="btn alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</button>
+                                )}
+                                {room?.started && room?.paused && (
+                                    <button className="btn" onClick={resumeGame}>▶️ Hervatten</button>
+                                )}
+
+                                <button className="btn warn" onClick={onLeaveClick}>Leave</button>
 
                                 {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
                             </>
                         )}
 
-                        {/* Offline melding wanneer nog niet gejoined */}
                         {!online && !isOnlineRoom && (
                             <span className="badge">Offline: maak verbinding om te spelen</span>
                         )}
                     </div>
                 </div>
-                {/* ───── EINDE: header blok ───── */}
 
 
-                {/* SPEELVELD */}
-                {isOnlineRoom && room?.started && (
-                    <Section>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-                            <div className="badge">Room: <b>{roomCode}</b></div>
+                {/* Speelveld */}
+                <div className="card" style={{ marginBottom: 12 }}>
+                    <div className="center">
+                        <div className="letterBig">{room?.lastLetter ? room.lastLetter : "?"}</div>
+                    </div>
 
-                            <div style={{ fontSize: 18 }}>
-                                Vereiste letter:{" "}
-                                <span style={{ fontWeight: 800 }}>
-                                    {room?.lastLetter ?? "?"}
-                                </span>
-                            </div>
+                    <div className="center" style={{ marginBottom: 8 }}>
+                        <div className="row" style={{ justifyContent: "center" }}>
+                            <span className="badge">
+                                Vereiste beginletter: <b>{room?.lastLetter || "?"}</b>
+                            </span>
 
-                            {!room.solo && (
-                                <>
-                                    {inCooldown ? (
-                                        <div className="badge">⏳ Volgende ronde over {Math.ceil(cooldownLeftMs / 1000)}s</div>
-                                    ) : (
-                                        <div className="row">
-                                            <span className="badge">⏱️ Tijd: {Math.floor(answerElapsedMs / 1000)}s / {Math.floor(MAX_TIME_MS / 1000)}s</span>
-                                            <span className="badge">🏅 Punten nu: <b>{potentialPoints}</b></span>
-                                        </div>
-                                    )}
-                                </>
+                            {room?.paused && <span className="badge">⏸️ Gepauzeerd</span>}
+
+                            {isOnlineRoom && !room?.solo && (
+                                inCooldown
+                                    ? <span className="badge">⏳ Volgende ronde over {Math.ceil(cooldownLeftMs / 1000)}s</span>
+                                    : <>
+                                        <span className="badge">
+                                            ⏱️ Tijd: {Math.floor(answerElapsedMs / 1000)}s / {Math.floor(MAX_TIME_MS / 1000)}s
+                                        </span>
+                                        <span className="badge">🏅 Nu waard: <b>{potentialPoints}</b></span>
+                                    </>
                             )}
-
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                inputMode="text"
-                                value={answer}
-                                onChange={e => setAnswer(e.target.value)}
-                                placeholder={
-                                    !isMyTurn
-                                        ? "Niet jouw beurt"
-                                        : (inCooldown ? "Wachten… ronde start zo" : "Typ je dier en druk Enter")
-                                }
-                                disabled={!isMyTurn || inCooldown}
-                                style={{ ...styles.letterInput, opacity: (isMyTurn && !inCooldown) ? 1 : 0.5 }}
-                                onKeyDown={e => { if (e.key === "Enter") submitAnswerOnline(); }}
-                            />
-
-                            <div className="muted">
-                                {requiredLetter ? `Tip: extra punten als je begint met "${requiredLetter}"` : "Eerste speler bepaalt de eerste ketting-letter."}
-                            </div>
                         </div>
-                    </Section>
-                )}
+                    </div>
+
+                    {isOnlineRoom && room?.started && (room?.jail?.[playerId] || 0) > 0 && (
+                        <div className="center" style={{ marginBottom: 8 }}>
+                            <span className="badge">
+                                🔒 Jilla actief — je wordt {room.jail[playerId]} beurt(en) overgeslagen
+                            </span>
+                        </div>
+                    )}
+
+                    {isOnlineRoom && room?.started ? (
+                        <>
+                            <div className="row" style={{ justifyContent: "center" }}>
+                                <input
+                                    ref={inputRef}
+                                    className="input"
+                                    style={{ minWidth: 260, maxWidth: 420, width: "100%" }}
+                                    placeholder={
+                                        room?.paused ? "Gepauzeerd…"
+                                            : !isMyTurn ? "Niet jouw beurt"
+                                                : (room?.jail?.[playerId] || 0) > 0 ? "Jilla actief — beurt wordt overgeslagen"
+                                                    : inCooldown ? "Wachten…"
+                                                        : "Typ een dier en druk Enter"
+                                    }
+                                    value={animalInput}
+                                    onChange={(e) => { setAnimalInput(e.target.value); setApiState({ status: "idle", msg: "" }); }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") submitAnimal(); }}
+                                    disabled={!isMyTurn || (room?.jail?.[playerId] || 0) > 0 || inCooldown || room?.paused}
+                                />
+                            </div>
+
+                            <div className="row" style={{ justifyContent: "center", marginTop: 8 }}>
+                                <button className="btn alt" onClick={checkAnimalViaAPI} disabled={!animalInput.trim() || room?.paused}>
+                                    Check dier (API)
+                                </button>
+                                {isMyTurn && !inCooldown && !room?.paused && (
+                                    <button className="btn alt" onClick={useJilla}>Jilla (skip)</button>
+                                )}
+                                <button
+                                    className="btn"
+                                    onClick={submitAnimal}
+                                    disabled={!isMyTurn || (room?.jail?.[playerId] || 0) > 0 || inCooldown || room?.paused}
+                                >
+                                    Indienen
+                                </button>
+                            </div>
+
+                            {apiState.status !== "idle" && (
+                                <div className="center" style={{ marginTop: 8 }}>
+                                    <span
+                                        className="badge"
+                                        style={{
+                                            background:
+                                                apiState.status === "ok" ? "rgba(34,197,94,.15)" :
+                                                    apiState.status === "notfound" ? "rgba(234,179,8,.12)" :
+                                                        apiState.status === "checking" ? "rgba(59,130,246,.12)" :
+                                                            "rgba(239,68,68,.12)",
+                                            borderColor:
+                                                apiState.status === "ok" ? "rgba(34,197,94,.35)" :
+                                                    apiState.status === "notfound" ? "rgba(234,179,8,.35)" :
+                                                        apiState.status === "checking" ? "rgba(59,130,246,.35)" :
+                                                            "rgba(239,68,68,.35)"
+                                        }}
+                                    >
+                                        {apiState.msg}
+                                    </span>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <p className="muted center" style={{ marginTop: 4 }}>
+                            Maak of join een room om te spelen.
+                        </p>
+                    )}
+                </div>
+
 
                 {/* SPELERS */}
                 {isOnlineRoom && room?.participants && (
