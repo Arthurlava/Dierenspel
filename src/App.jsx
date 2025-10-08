@@ -7,7 +7,7 @@ import {
 } from "firebase/database";
 
 /* -------- Config -------- */
-const SITE_TITLE = "PimPamPof — Dierenspel";
+const SITE_TITLE = "Dierenspel";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDuYvtJbjj0wQbSwIBtyHuPeF71poPIBUg",
