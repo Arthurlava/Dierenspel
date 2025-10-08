@@ -103,8 +103,16 @@ export default function App(){
   const inputRef=useRef(null);
 
   const inCooldown = room?.phase==="cooldown" && !room?.solo;
-  const cooldownLeftMs = Math.max(0,(room?.cooldownEndAt||0)-now);
-  const answerElapsedMs = (!room?.solo && room?.phase==="answer" && room?.turnStartAt) ? Math.max(0, now-room.turnStartAt) : 0;
+  // freeze the clock while paused
+  const effectiveNow = room?.paused ? (room?.pausedAt || now) : now;
+  
+  // timers gebaseerd op de bevroren tijd
+  const cooldownLeftMs = Math.max(0, (room?.cooldownEndAt || 0) - effectiveNow);
+  const answerElapsedMs = (!room?.solo && room?.phase==="answer" && room?.turnStartAt)
+    ? Math.max(0, effectiveNow - room.turnStartAt)
+    : 0;
+  
+  // punten ook bevroren tijdens pauze
   const potentialPoints = !room?.solo ? calcPoints(answerElapsedMs) : 0;
 
   function attachRoom(code){
