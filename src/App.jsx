@@ -17,7 +17,7 @@ const MAX_POINTS = 200;      // max bij direct antwoord
 const DOUBLE_POF_BONUS = 100; // bonus wanneer antwoord start met "vereiste letter"
 const COOLDOWN_MS = 5000;     // pauze na ieders beurt (alleen MP)
 
-// Firebase (Dierenspel — laat zoals je eerder gebruikte; anders zet hier je eigen config)
+// Firebase (laat zoals je eerder gebruikte)
 const firebaseConfig = {
     apiKey: "AIzaSyDuYvtJbjj0wQbSwIBtyHuPeF71poPIBUg",
     authDomain: "pimpampof-aec32.firebaseapp.com",
@@ -71,7 +71,7 @@ const GlobalStyle = () => (
     box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: pofPop 1200ms ease-out forwards; letter-spacing: .5px;
   }
 
-  /* Answer flash (nieuw) */
+  /* Answer flash — GROEN gemaakt */
   @keyframes answerFlash {
     0% { transform: scale(.9); opacity: 0 }
     10% { transform: scale(1.04); opacity: 1 }
@@ -81,8 +81,9 @@ const GlobalStyle = () => (
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
-    background: radial-gradient(circle at 30% 30%, rgba(59,130,246,.95), rgba(37,99,235,.92));
-    color: #051026; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
+    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92)); /* groen */
+    color: #041507; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
+    border: 1px solid rgba(255,255,255,.18);
   }
 
   /* Score toast */
@@ -115,6 +116,7 @@ const styles = {
     header: { display: "flex", flexDirection: "column", gap: 12, alignItems: "center" },
     h1: { fontSize: 28, fontWeight: 800, margin: 0 },
     row: { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "center" },
+    stack: { display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }, // << nieuw: alles onder elkaar
     section: {
         width: "100%", padding: 16, borderRadius: 16,
         background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
@@ -124,7 +126,7 @@ const styles = {
     btn: { padding: "10px 16px", borderRadius: 12, border: "none", background: "#16a34a", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" },
     btnAlt: { background: "#065f46" }, btnStop: { background: "#475569" },
     btnDanger: { padding: "6px 10px", borderRadius: 10, border: "none", background: "#dc2626", color: "#fff", fontSize: 13, cursor: "pointer" },
-    input: { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none" },
+    input: { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", minWidth: 240 },
     letterInput: { marginTop: 8, width: 260, textAlign: "center", padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", fontSize: 16, boxSizing: "border-box" },
     list: { listStyle: "none", padding: 0, margin: 0 },
     li: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.1)" },
@@ -156,13 +158,11 @@ function calcPoints(ms) {
     const p = Math.floor(MAX_POINTS * (1 - ms / MAX_TIME_MS));
     return Math.max(0, p);
 }
-// laatste letter uit woord (alleen a-z), anders '?'
 function lastAlphaLetter(word) {
     const s = (word || "").toLowerCase().normalize("NFKD").replace(/[^\p{Letter}]/gu, "");
     if (!s) return "?";
     return s.at(-1).toUpperCase();
 }
-// check dubble pof: ingezonden eerste letter == vereiste letter
 function isDoublePof(requiredLetter, word) {
     const s = (word || "").toUpperCase().replace(/[^A-ZÁÉÍÓÚÄËÏÖÜÇÑ]/g, "");
     const first = s[0] || "";
@@ -204,8 +204,8 @@ export default function DierenspelApp() {
     const [pofText, setPofText] = useState("Dubble pof!");
     const [scoreToast, setScoreToast] = useState({ show: false, text: "", type: "plus" });
 
-    // nieuw: flash + anti-dup id
-    const [flash, setFlash] = useState(null);        // { text }
+    // flash
+    const [flash, setFlash] = useState(null);
     const flashedIdRef = useRef(null);
 
     const connIdRef = useRef(null);
@@ -271,8 +271,8 @@ export default function DierenspelApp() {
         if (!room?.answers || room.answers.length === 0) return;
         const last = room.answers[room.answers.length - 1];
         if (!last) return;
-        if (last.id && flashedIdRef.current === last.id) return; // al getoond
-        if (last.pid === playerId) { flashedIdRef.current = last.id; return; } // eigen antwoord flitsen we niet
+        if (last.id && flashedIdRef.current === last.id) return;
+        if (last.pid === playerId) { flashedIdRef.current = last.id; return; }
 
         flashedIdRef.current = last.id;
         setFlash({ text: `${last.name}: ${last.answer}` });
@@ -297,8 +297,9 @@ export default function DierenspelApp() {
             cooldownEndAt: null,
             scores: {},
             stats: {},
-            answers: [],       // << nieuw: geschiedenis
-            used: {},          // map van normalized animal -> true (repeat protect)
+            answers: [],       // geschiedenis
+            used: {},          // normalized dier -> true (repeat protect)
+            phase: "answer",
             version: 1
         };
         await set(ref(db, `rooms/${code}`), obj);
@@ -330,11 +331,12 @@ export default function DierenspelApp() {
             if (!data.stats) data.stats = {};
             if (!data.answers) data.answers = [];
             if (!data.used) data.used = {};
+            if (!data.lastLetter) data.lastLetter = "?";
+            if (!data.phase) { data.phase = "answer"; data.turnStartAt = data.solo ? null : Date.now(); data.cooldownEndAt = null; }
 
             if (!data.turn || !data.players[data.turn]) data.turn = data.playersOrder[0] || playerId;
             if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder[0] || playerId;
-            if (!data.lastLetter) data.lastLetter = "?";
-            if (!data.phase) { data.phase = "answer"; data.turnStartAt = data.solo ? null : Date.now(); data.cooldownEndAt = null; }
+
             return data;
         });
 
@@ -385,7 +387,7 @@ export default function DierenspelApp() {
         const bonus = isMP && isDouble ? DOUBLE_POF_BONUS : 0;
         const totalGain = isMP ? (basePoints + bonus) : 0;
 
-        const letterToSet = lastAlphaLetter(w); // nieuwe vereiste laatste letter
+        const letterToSet = lastAlphaLetter(w);
         const r = ref(db, `rooms/${roomCode}`);
 
         await runTransaction(r, (data) => {
@@ -399,7 +401,6 @@ export default function DierenspelApp() {
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
-            // punten/stats (alleen in MP)
             if (!data.solo) {
                 if (!data.scores) data.scores = {};
                 data.scores[playerId] = (data.scores[playerId] || 0) + totalGain;
@@ -412,7 +413,6 @@ export default function DierenspelApp() {
                 data.stats[playerId] = s;
             }
 
-            // geschiedenis + used
             if (!data.answers) data.answers = [];
             if (!data.used) data.used = {};
             const id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`;
@@ -429,7 +429,6 @@ export default function DierenspelApp() {
             if (key) data.used[key] = true;
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
-            // voortgang
             data.lastLetter = letterToSet || "?";
             advanceTurnWithJail(data);
 
@@ -504,54 +503,48 @@ export default function DierenspelApp() {
             <div style={styles.wrap}>
                 <header style={styles.header}>
                     <h1 style={styles.h1}>Dierenspel</h1>
-                    <Row>
-                        {!room?.started && (
+
+                    {/* BEGIN UI: alles onder elkaar */}
+                    {!isOnlineRoom && (
+                        <div style={styles.stack}>
                             <input
                                 style={styles.input}
                                 placeholder="Jouw naam"
                                 value={playerName}
                                 onChange={e => setPlayerName(e.target.value)}
                             />
-                        )}
-
-                        {!isOnlineRoom && (
-                            <>
-                                <Button variant="alt" onClick={() => createRoom({ solo: false })}>Room aanmaken</Button>
+                            <Button variant="alt" onClick={() => createRoom({ solo: false })}>Room aanmaken</Button>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
                                 <input style={styles.input} placeholder="Room code" value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} />
                                 <Button variant="alt" onClick={joinRoom}>Join</Button>
-                                <Button onClick={() => (window.location.href = URL_PIMPAMPOF)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</Button>
-                            </>
-                        )}
+                            </div>
+                            <Button onClick={() => (window.location.href = URL_PIMPAMPOF)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</Button>
+                        </div>
+                    )}
 
-                        {isOnlineRoom && (
-                            <>
-                                {!room?.started && roomCode && (
-                                    <span className="badge">Room: <b>{roomCode}</b></span>
-                                )}
-                                <Button variant="alt" onClick={leaveRoom}>Leave</Button>
-                            </>
-                        )}
-                    </Row>
+                    {/* Room status / knoppen */}
+                    {isOnlineRoom && (
+                        <Row>
+                            {!room?.started && roomCode && (
+                                <span className="badge">Room: <b>{roomCode}</b></span>
+                            )}
+                            {isHost && !room?.started && <Button onClick={startGame}>Start spel</Button>}
+                            <Button variant="alt" onClick={leaveRoom}>Leave</Button>
+                        </Row>
+                    )}
 
-                    <Row>
-                        {isOnlineRoom && isHost && !room?.started && (
-                            <Button onClick={startGame}>Start spel</Button>
-                        )}
-                        {isOnlineRoom && room?.started && (
-                            <span className="muted">
-                                {room.solo ? "Solo modus." : "Multiplayer — timer & punten actief (5s cooldown)."}
-                            </span>
-                        )}
-                    </Row>
+                    {isOnlineRoom && room?.started && (
+                        <span className="muted">
+                            {room.solo ? "Solo modus." : "Multiplayer — timer & punten actief (5s cooldown)."}
+                        </span>
+                    )}
                 </header>
 
                 {/* SPEELVELD */}
                 {isOnlineRoom && room?.started && (
                     <Section>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-                            <div className="badge">
-                                Room: <b>{roomCode}</b>
-                            </div>
+                            <div className="badge">Room: <b>{roomCode}</b></div>
 
                             <div style={{ fontSize: 18 }}>
                                 Vereiste letter:{" "}
@@ -586,9 +579,7 @@ export default function DierenspelApp() {
                                 }
                                 disabled={!isMyTurn || inCooldown}
                                 style={{ ...styles.letterInput, opacity: (isMyTurn && !inCooldown) ? 1 : 0.5 }}
-                                onKeyDown={e => {
-                                    if (e.key === "Enter") submitAnswerOnline();
-                                }}
+                                onKeyDown={e => { if (e.key === "Enter") submitAnswerOnline(); }}
                             />
 
                             <div className="muted">
@@ -672,7 +663,7 @@ export default function DierenspelApp() {
                 </div>
             )}
 
-            {/* Nieuw: answer flash */}
+            {/* Groen answer flash */}
             {flash && (
                 <div className="answer-flash">
                     <div className="answer-bubble">{flash.text}</div>
