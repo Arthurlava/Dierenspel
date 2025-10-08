@@ -14,6 +14,7 @@ const SITE_TITLE = "Dierenspel";
 const MAX_TIME_MS = 120000;
 const MAX_POINTS = 200;
 const DOUBLE_POF_BONUS = 100;
+const JILLA_PENALTY = 25;
 const COOLDOWN_MS = 5000;
 
 // Firebase
@@ -108,7 +109,7 @@ const GlobalStyle = () => (
     100% { transform: scale(.98); opacity: 0 }
   }
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
-  /* Groen gemaakt */
+  /* Groen */
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
     background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92));
@@ -336,16 +337,17 @@ export default function DierenspelApp() {
             started: false,
             lastLetter: "?",
             turn: playerId,
-            turnStartAt: null,               // <— geen timer vóór start
+            turnStartAt: null,          // geen timer vóór start
             cooldownEndAt: null,
             paused: false,
             pausedAt: null,
+            jail: {},                   // Jilla
             scores: {},
             stats: {},
             answers: [],
             used: {},
             phase: "answer",
-            version: 2
+            version: 3
         };
         await set(ref(db, `rooms/${code}`), obj);
         setIsHost(true);
@@ -376,16 +378,16 @@ export default function DierenspelApp() {
             data.stats ??= {};
             data.answers ??= [];
             data.used ??= {};
+            data.jail ??= {};
             data.lastLetter ??= "?";
-            if (!data.phase) { data.phase = "answer"; }
-            // geen timer laten lopen voordat het gestart is
+            data.paused ??= false;
+            data.pausedAt ??= null;
+
+            if (!data.phase) data.phase = "answer";
             if (!data.started) { data.turnStartAt = null; data.cooldownEndAt = null; }
 
             if (!data.turn || !data.players[data.turn]) data.turn = data.playersOrder[0] || playerId;
             if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder[0] || playerId;
-
-            data.paused ??= false;
-            data.pausedAt ??= null;
 
             return data;
         });
@@ -412,9 +414,19 @@ export default function DierenspelApp() {
         const ids = (Array.isArray(data.playersOrder) ? data.playersOrder : Object.keys(data.players || {}))
             .filter((id) => data.players && data.players[id]);
         if (ids.length === 0) return null;
+
+        // sla spelers met jail > 0 over en decrement jail
         let idx = Math.max(0, ids.indexOf(data.turn));
-        idx = (idx + 1) % ids.length;
-        data.turn = ids[idx];
+        for (let i = 0; i < ids.length; i++) {
+            idx = (idx + 1) % ids.length;
+            const cand = ids[idx];
+            data.jail ??= {};
+            const j = data.jail[cand] || 0;
+            if (j > 0) { data.jail[cand] = j - 1; continue; }
+            data.turn = cand;
+            return cand;
+        }
+        data.turn = ids[(ids.indexOf(data.turn) + 1) % ids.length];
         return data.turn;
     }
 
@@ -427,10 +439,7 @@ export default function DierenspelApp() {
         // Vereiste beginletter afdwingen
         if (room.lastLetter && room.lastLetter !== "?") {
             const first = firstAlphaLetter(w);
-            if (first !== room.lastLetter) {
-                // blokkeert indienen
-                return;
-            }
+            if (first !== room.lastLetter) return;
         }
 
         const key = normalizeAnimalKey(w);
@@ -439,7 +448,7 @@ export default function DierenspelApp() {
             return;
         }
 
-        // bevroren tijd wanneer gepauzeerd
+        // bevroren tijd wanneer gepauzeerd (ook voor stats)
         const nowTs = Date.now();
         const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
         const startAt = room?.turnStartAt ?? effectiveNow;
@@ -455,8 +464,8 @@ export default function DierenspelApp() {
 
         await runTransaction(r, (data) => {
             if (!data) return data;
-            if (!data.started) return data;         // niet vóór start
-            if (data.paused) return data;           // niet tijdens pauze
+            if (!data.started) return data;
+            if (data.paused) return data;
             if (!data.players || !data.players[data.turn]) {
                 const ids = data.players ? Object.keys(data.players) : [];
                 if (ids.length === 0) return null;
@@ -472,27 +481,30 @@ export default function DierenspelApp() {
                 if (first !== data.lastLetter) return data; // weigeren
             }
 
+            // duplicate guard server-side
+            data.used ??= {};
+            if (key && data.used[key]) return data;
+
             if (!data.solo) {
                 data.scores ??= {};
                 data.scores[playerId] = (data.scores[playerId] || 0) + totalGain;
 
                 data.stats ??= {};
                 const s = data.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
-                s.totalTimeMs += Math.max(0, (Date.now() - (data.turnStartAt ?? Date.now())));
+                s.totalTimeMs += elapsed;
                 s.answeredCount += 1;
                 if (isDouble) s.doubleCount += 1;
                 data.stats[playerId] = s;
             }
 
             data.answers ??= [];
-            data.used ??= {};
             const id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`;
             data.answers.push({
                 id,
                 pid: playerId,
                 name: (data.participants?.[playerId]?.name) || (data.players?.[playerId]?.name) || "Speler",
                 answer: w,
-                timeMs: Math.max(0, (Date.now() - (data.turnStartAt ?? Date.now()))),
+                timeMs: elapsed,
                 points: data.solo ? 0 : totalGain,
                 double: !!isDouble,
                 ts: Date.now()
@@ -522,12 +534,47 @@ export default function DierenspelApp() {
         setTimeout(() => inputRef.current?.focus(), 0);
     }
 
+    async function useJilla() {
+        if (!room || !room.started) return;
+        const r = ref(db, `rooms/${roomCode}`);
+        await runTransaction(r, (d) => {
+            if (!d || d.paused) return d;
+            if (d.turn !== playerId) return d;
+            if (d.phase !== "answer") return d;
+
+            d.jail ??= {};
+            d.jail[playerId] = (d.jail[playerId] || 0) + 1;
+
+            if (!d.solo) {
+                d.scores ??= {};
+                d.stats ??= {};
+                d.scores[playerId] = (d.scores[playerId] || 0) - JILLA_PENALTY;
+                const s = d.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
+                s.jillaCount = (s.jillaCount || 0) + 1;
+                d.stats[playerId] = s;
+
+                d.phase = "cooldown";
+                d.cooldownEndAt = Date.now() + COOLDOWN_MS;
+                d.turnStartAt = null;
+            } else {
+                d.phase = "answer";
+                d.turnStartAt = null;
+                d.cooldownEndAt = null;
+            }
+
+            advanceTurn(d);
+            return d;
+        });
+        triggerScoreToast(`-${JILLA_PENALTY} punten (Jilla)`, "minus");
+    }
+
     async function leaveRoom() {
         if (!roomCode) { setRoom(null); setRoomCode(""); setIsHost(false); return; }
         const r = ref(db, `rooms/${roomCode}`);
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (data.players && data.players[playerId]) delete data.players[playerId];
+            if (data.jail && data.jail[playerId] != null) delete data.jail[playerId];
             if (Array.isArray(data.playersOrder)) data.playersOrder = data.playersOrder.filter(id => id !== playerId && data.players && data.players[id]);
             const ids = data.players ? Object.keys(data.players) : [];
             if (ids.length === 0) return null;
@@ -559,13 +606,13 @@ export default function DierenspelApp() {
         return arr;
     }
 
-    // Pauze/hervat met echte “freeze” in UI en in state
+    // Pauze/hervat (freeze én doorlooptijden corrigeren)
     async function pauseGame() {
         if (!roomCode || !room) return;
         await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
             if (!d || d.paused) return d;
             d.paused = true;
-            d.pausedAt = Date.now();
+            d.pausedAt = Date.now(); // we gebruiken deze om UI-tijd te bevriezen
             return d;
         });
     }
@@ -596,9 +643,6 @@ export default function DierenspelApp() {
         setApiState({ status: "checking", msg: "Bezig met controleren…" });
         setTimeout(() => setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden in database" }), 400);
     }
-    async function useJilla() {
-        // optioneel later uitwerken
-    }
 
     /* ---------- cooldown tick ---------- */
     const inCooldown = room?.phase === "cooldown" && !room?.solo && room?.started;
@@ -628,7 +672,7 @@ export default function DierenspelApp() {
         ? calcPoints(answerElapsedMs)
         : 0;
 
-    // beginletter validatie voor UI (disable knop)
+    // beginletter validatie voor UI (disable knop + enter)
     const beginsOk = !requiredLetter || firstAlphaLetter(answer) === requiredLetter;
     const canSubmit = isMyTurn && !inCooldown && !room?.paused && room?.started && beginsOk;
 
@@ -719,6 +763,13 @@ export default function DierenspelApp() {
 
                     {isOnlineRoom && room?.started ? (
                         <>
+                            {/* Jilla status voor mij */}
+                            {(room?.jail?.[playerId] || 0) > 0 && (
+                                <div className="center" style={{ marginBottom: 8 }}>
+                                    <span className="badge">🔒 Jilla actief — je wordt {room.jail[playerId]} beurt(en) overgeslagen</span>
+                                </div>
+                            )}
+
                             <div className="row" style={{ justifyContent: "center" }}>
                                 <input
                                     ref={inputRef}
@@ -733,7 +784,7 @@ export default function DierenspelApp() {
                                     value={answer}
                                     onChange={(e) => { setAnswer(e.target.value); setApiState({ status: "idle", msg: "" }); }}
                                     onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) submitAnswerOnline(); }}
-                                    disabled={!isMyTurn || inCooldown || room?.paused}
+                                    disabled={!isMyTurn || inCooldown || room?.paused || (room?.jail?.[playerId] || 0) > 0}
                                 />
                             </div>
 
@@ -744,7 +795,7 @@ export default function DierenspelApp() {
                                 {isMyTurn && !inCooldown && !room?.paused && (
                                     <Button variant="alt" onClick={useJilla}>Jilla (skip)</Button>
                                 )}
-                                <Button onClick={submitAnswerOnline} disabled={!canSubmit}>
+                                <Button onClick={submitAnswerOnline} disabled={!canSubmit || (room?.jail?.[playerId] || 0) > 0}>
                                     Indienen
                                 </Button>
                             </div>
@@ -788,6 +839,7 @@ export default function DierenspelApp() {
                                     const pName = (room.participants?.[id]?.name) || (room.players?.[id]?.name) || "Speler";
                                     const active = room.turn === id;
                                     const score = (!room.solo && room.scores && room.scores[id]) || 0;
+                                    const jcount = (room.jail && room.jail[id]) || 0;
                                     return (
                                         <li
                                             key={id}
@@ -799,9 +851,11 @@ export default function DierenspelApp() {
                                             <div style={styles.liText}>
                                                 {idx + 1}. {pName}{room?.hostId === id ? " (host)" : ""}{" "}
                                                 {!room.solo && <> <span style={{ margin: "0 6px" }} /> <span className="badge">Punten: <b>{score}</b></span></>}
+                                                {" "}{jcount > 0 && <span className="badge">Jilla x{jcount}</span>}
+                                                {" "}{active && <span className="badge">🟢 beurt</span>}
                                             </div>
                                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                                {active ? <div>🟢 beurt</div> : <div style={{ opacity: 0.6 }}>—</div>}
+                                                {active ? <div /> : <div style={{ opacity: 0.6 }}>—</div>}
                                             </div>
                                         </li>
                                     );
