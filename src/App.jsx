@@ -50,6 +50,8 @@ const GlobalStyle = () => (
     box-sizing: border-box;
   }
   input, button, textarea { font-family: inherit; }
+
+  /* ==== oude UI badges/teksten ==== */
   .badge {
     display:inline-flex; align-items:center; gap:8px;
     padding:6px 10px; border-radius:999px;
@@ -57,7 +59,38 @@ const GlobalStyle = () => (
     font-size: 12px;
   }
   .muted { color: rgba(255,255,255,0.7); font-size:12px; }
+  .h1 { margin:0 0 6px 0; font-size:28px; font-weight:900; }
+  .card {
+    width: min(92vw, 720px);
+    background: #111;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center; }
+  .input {
+    padding:10px 12px; border-radius:12px;
+    border:1px solid rgba(255,255,255,.15);
+    background:rgba(255,255,255,.06); color:#fff; outline:none;
+  }
+  .center { display:flex; justify-content:center; }
+  .letterBig{
+    display:grid; place-items:center; width:120px; height:120px; border-radius:28px;
+    background:radial-gradient(circle at 30% 30%, #22c55e, #16a34a);
+    color:#041507; font-size:56px; font-weight:900;
+    border:1px solid rgba(0,0,0,.2); box-shadow:0 14px 40px rgba(34,197,94,.35);
+    margin:8px auto 12px;
+  }
 
+  /* ==== GROENE KNOPPEN (oude stijl) ==== */
+  .btn{
+    padding:10px 14px; border:none; border-radius:12px;
+    background:#16a34a; color:#fff; font-weight:800; cursor:pointer;
+  }
+  .btn.alt{ background:#065f46; color:#eafff6 }
+  .btn.warn{ background:#dc2626; color:#fff }
+  .btn:disabled{ opacity:.6; cursor:not-allowed }
+
+  /* toasts/flash */
   @keyframes pofPop {
     0% { transform: scale(0.6); opacity: 0; }
     20% { transform: scale(1.12); opacity: 1; }
@@ -80,9 +113,8 @@ const GlobalStyle = () => (
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
-    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92));
-    color: #041507; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
-    border: 1px solid rgba(255,255,255,.18);
+    background: radial-gradient(circle at 30% 30%, rgba(59,130,246,.95), rgba(37,99,235,.92));
+    color: #051026; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
   }
 
   @keyframes scoreToast {
@@ -97,12 +129,7 @@ const GlobalStyle = () => (
   .score-minus { background: linear-gradient(90deg, #ef4444, #dc2626); color: #180404; }
 
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index: 9995; }
-  .card {
-    width: min(92vw, 720px);
-    background: #111;
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
-  }
+  .dialog{width:min(92vw, 720px);background:#0f172a;border:1px solid #1f2937;border-radius:16px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
   .table { width:100%; border-collapse: collapse; }
   .table th, .table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
   .table th { font-weight: 700; }
@@ -111,16 +138,12 @@ const GlobalStyle = () => (
 
 const styles = {
     wrap: { display: "flex", flexDirection: "column", gap: 20, textAlign: "center", alignItems: "center" },
-    row: { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "center" },
     section: {
         width: "100%", padding: 16, borderRadius: 16,
         background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
         boxShadow: "0 8px 22px rgba(0,0,0,0.3)", boxSizing: "border-box",
     },
     sectionTitle: { margin: "0 0 8px 0", fontSize: 18, fontWeight: 700 },
-    btn: { padding: "10px 16px", borderRadius: 12, border: "none", background: "#16a34a", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" },
-    btnAlt: { background: "#065f46" },
-    input: { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", minWidth: 240 },
     letterInput: { marginTop: 8, width: 260, textAlign: "center", padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", fontSize: 16, boxSizing: "border-box" },
     list: { listStyle: "none", padding: 0, margin: 0 },
     li: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.1)" },
@@ -182,11 +205,24 @@ function Section({ title, children }) {
     return (<div style={styles.section}>{title && <h2 style={styles.sectionTitle}>{title}</h2>}{children}</div>);
 }
 
+// --- Reusable groene Button (koppelt aan .btn classes uit GlobalStyle) ---
+function Button({ children, variant, className = "", ...props }) {
+    const base =
+        variant === "alt" ? "btn alt" :
+            variant === "warn" ? "btn warn" : "btn";
+    return (
+        <button className={`${base}${className ? ` ${className}` : ""}`} {...props}>
+            {children}
+        </button>
+    );
+}
+
 /* =========================
    COMPONENT
 ========================= */
 export default function DierenspelApp() {
     const online = useOnline();
+    useEffect(() => { document.title = SITE_TITLE; }, []);
 
     const [playerName, setPlayerName] = useState(() => localStorage.getItem(NAME_KEY) || "");
     useEffect(() => { localStorage.setItem(NAME_KEY, playerName || ""); }, [playerName]);
@@ -198,15 +234,17 @@ export default function DierenspelApp() {
     const [room, setRoom] = useState(null);
     const [isHost, setIsHost] = useState(false);
     const [answer, setAnswer] = useState("");
+    const [apiState, setApiState] = useState({ status: "idle", msg: "" });
+
+    // timers/toasts
     const [now, setNow] = useState(() => Date.now());
     const [pofShow, setPofShow] = useState(false);
     const [pofText, setPofText] = useState("Dubble pof!");
     const [scoreToast, setScoreToast] = useState({ show: false, text: "", type: "plus" });
-
-    // flash
     const [flash, setFlash] = useState(null);
     const flashedIdRef = useRef(null);
 
+    // refs
     const connIdRef = useRef(null);
     const inputRef = useRef(null);
     const roomRef = useRef(null);
@@ -357,11 +395,10 @@ export default function DierenspelApp() {
         setTimeout(() => inputRef.current?.focus(), 0);
     }
 
-    function advanceTurnWithJail(data) {
+    function advanceTurn(data) {
         const ids = (Array.isArray(data.playersOrder) ? data.playersOrder : Object.keys(data.players || {}))
             .filter((id) => data.players && data.players[id]);
         if (ids.length === 0) return null;
-
         let idx = Math.max(0, ids.indexOf(data.turn));
         idx = (idx + 1) % ids.length;
         data.turn = ids[idx];
@@ -428,7 +465,7 @@ export default function DierenspelApp() {
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
             data.lastLetter = letterToSet || "?";
-            advanceTurnWithJail(data);
+            advanceTurn(data);
 
             if (!data.solo) {
                 data.phase = "cooldown";
@@ -443,10 +480,7 @@ export default function DierenspelApp() {
         });
 
         if (isDouble) triggerPof(`Dubble pof! +${DOUBLE_POF_BONUS}`);
-        if (isMP && totalGain > 0) {
-            setScoreToast({ show: true, text: `+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, type: "plus" });
-            setTimeout(() => setScoreToast(s => ({ ...s, show: false })), 1400);
-        }
+        if (isMP && totalGain > 0) triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
 
         setAnswer("");
         setTimeout(() => inputRef.current?.focus(), 0);
@@ -472,6 +506,37 @@ export default function DierenspelApp() {
             connIdRef.current = null;
         }
         setRoom(null); setRoomCode(""); setIsHost(false);
+    }
+
+    // helpers voor knoppen (oude UI verwacht deze handlers)
+    async function pauseGame() {
+        if (!roomCode || !room) return;
+        await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
+            if (!d || d.paused) return d;
+            d.paused = true; d.pausedAt = Date.now(); return d;
+        });
+    }
+    async function resumeGame() {
+        if (!roomCode || !room) return;
+        await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
+            if (!d || !d.paused) return d;
+            const delta = Date.now() - (d.pausedAt || Date.now());
+            if (d.cooldownEndAt) d.cooldownEndAt += delta;
+            if (d.turnStartAt) d.turnStartAt += delta;
+            d.paused = false; d.pausedAt = null; return d;
+        });
+    }
+    async function onLeaveClick() { await leaveRoom(); }
+    async function checkAnimalViaAPI() {
+        const q = (answer || "").trim();
+        if (!q) return setApiState({ status: "idle", msg: "" });
+        setApiState({ status: "checking", msg: "Bezig met controleren…" });
+        // Plaats hier je echte API-call indien gewenst
+        setTimeout(() => setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden in database" }), 400);
+    }
+    async function useJilla() {
+        // In deze versie geen jail-logic; je kunt hier later uitbreiden
+        // alert("Jilla is (nog) niet geactiveerd.");
     }
 
     /* ---------- cooldown tick ---------- */
@@ -520,43 +585,32 @@ export default function DierenspelApp() {
 
                         {!isOnlineRoom ? (
                             <>
-                                <button className="btn" onClick={createRoom} disabled={!online}>Room aanmaken</button>
+                                <Button onClick={createRoom} disabled={!online}>Room aanmaken</Button>
                                 <input
                                     className="input"
                                     placeholder="Room code"
                                     value={roomCodeInput}
                                     onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
                                 />
-                                <button className="btn alt" onClick={joinRoom} disabled={!online}>Join</button>
+                                <Button variant="alt" onClick={joinRoom} disabled={!online}>Join</Button>
+                                <Button onClick={() => (window.location.href = URL_PIMPAMPOF)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</Button>
                             </>
                         ) : (
                             <>
                                 {!room?.started && isHost && (
-                                    <button
-                                        className="btn"
-                                        onClick={async () => {
-                                            await update(ref(db, `rooms_animals/${roomCode}`), {
-                                                started: true, lastLetter: "?", phase: "answer",
-                                                turn: room.playersOrder?.[0] || room.hostId,
-                                                turnStartAt: Date.now(), cooldownEndAt: null
-                                            });
-                                            setTimeout(() => inputRef.current?.focus(), 0);
-                                        }}
-                                    >Start spel</button>
+                                    <Button onClick={startGame}>Start spel</Button>
                                 )}
                                 {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
                                 {room?.started && <span className="badge">Multiplayer actief</span>}
 
                                 {/* Pauze / Hervat */}
                                 {room?.started && !room?.paused && (
-                                    <button className="btn alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</button>
+                                    <Button variant="alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</Button>
                                 )}
                                 {room?.started && room?.paused && (
-                                    <button className="btn" onClick={resumeGame}>▶️ Hervatten</button>
+                                    <Button onClick={resumeGame}>▶️ Hervatten</Button>
                                 )}
-
-                                <button className="btn warn" onClick={onLeaveClick}>Leave</button>
-
+                                <Button variant="warn" onClick={onLeaveClick}>Leave</Button>
                                 {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
                             </>
                         )}
@@ -566,7 +620,6 @@ export default function DierenspelApp() {
                         )}
                     </div>
                 </div>
-
 
                 {/* Speelveld */}
                 <div className="card" style={{ marginBottom: 12 }}>
@@ -595,14 +648,6 @@ export default function DierenspelApp() {
                         </div>
                     </div>
 
-                    {isOnlineRoom && room?.started && (room?.jail?.[playerId] || 0) > 0 && (
-                        <div className="center" style={{ marginBottom: 8 }}>
-                            <span className="badge">
-                                🔒 Jilla actief — je wordt {room.jail[playerId]} beurt(en) overgeslagen
-                            </span>
-                        </div>
-                    )}
-
                     {isOnlineRoom && room?.started ? (
                         <>
                             <div className="row" style={{ justifyContent: "center" }}>
@@ -613,31 +658,26 @@ export default function DierenspelApp() {
                                     placeholder={
                                         room?.paused ? "Gepauzeerd…"
                                             : !isMyTurn ? "Niet jouw beurt"
-                                                : (room?.jail?.[playerId] || 0) > 0 ? "Jilla actief — beurt wordt overgeslagen"
-                                                    : inCooldown ? "Wachten…"
-                                                        : "Typ een dier en druk Enter"
+                                                : inCooldown ? "Wachten…"
+                                                    : "Typ een dier en druk Enter"
                                     }
-                                    value={animalInput}
-                                    onChange={(e) => { setAnimalInput(e.target.value); setApiState({ status: "idle", msg: "" }); }}
-                                    onKeyDown={(e) => { if (e.key === "Enter") submitAnimal(); }}
-                                    disabled={!isMyTurn || (room?.jail?.[playerId] || 0) > 0 || inCooldown || room?.paused}
+                                    value={answer}
+                                    onChange={(e) => { setAnswer(e.target.value); setApiState({ status: "idle", msg: "" }); }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") submitAnswerOnline(); }}
+                                    disabled={!isMyTurn || inCooldown || room?.paused}
                                 />
                             </div>
 
                             <div className="row" style={{ justifyContent: "center", marginTop: 8 }}>
-                                <button className="btn alt" onClick={checkAnimalViaAPI} disabled={!animalInput.trim() || room?.paused}>
+                                <Button variant="alt" onClick={checkAnimalViaAPI} disabled={!answer.trim() || room?.paused}>
                                     Check dier (API)
-                                </button>
+                                </Button>
                                 {isMyTurn && !inCooldown && !room?.paused && (
-                                    <button className="btn alt" onClick={useJilla}>Jilla (skip)</button>
+                                    <Button variant="alt" onClick={useJilla}>Jilla (skip)</Button>
                                 )}
-                                <button
-                                    className="btn"
-                                    onClick={submitAnimal}
-                                    disabled={!isMyTurn || (room?.jail?.[playerId] || 0) > 0 || inCooldown || room?.paused}
-                                >
+                                <Button onClick={submitAnswerOnline} disabled={!isMyTurn || inCooldown || room?.paused}>
                                     Indienen
-                                </button>
+                                </Button>
                             </div>
 
                             {apiState.status !== "idle" && (
@@ -668,7 +708,6 @@ export default function DierenspelApp() {
                         </p>
                     )}
                 </div>
-
 
                 {/* SPELERS */}
                 {isOnlineRoom && room?.participants && (
@@ -744,7 +783,7 @@ export default function DierenspelApp() {
                 </div>
             )}
 
-            {/* Groen answer flash */}
+            {/* Nieuw: answer flash */}
             {flash && (
                 <div className="answer-flash">
                     <div className="answer-bubble">{flash.text}</div>
