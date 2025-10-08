@@ -14,10 +14,10 @@ const URL_PIMPAMPOF =
 
 const MAX_TIME_MS = 120000;   // 2 min -> 0 punten
 const MAX_POINTS = 200;      // max bij direct antwoord
-const DOUBLE_POF_BONUS = 100; // bonus wanneer antwoord start met vereiste letter
+const DOUBLE_POF_BONUS = 100; // bonus wanneer antwoord start met "vereiste letter"
 const COOLDOWN_MS = 5000;     // pauze na ieders beurt (alleen MP)
 
-// Firebase (zoals eerder)
+// Firebase (laat zoals je eerder gebruikte)
 const firebaseConfig = {
     apiKey: "AIzaSyDuYvtJbjj0wQbSwIBtyHuPeF71poPIBUg",
     authDomain: "pimpampof-aec32.firebaseapp.com",
@@ -71,7 +71,7 @@ const GlobalStyle = () => (
     box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: pofPop 1200ms ease-out forwards; letter-spacing: .5px;
   }
 
-  /* Answer flash — GROEN */
+  /* Answer flash — GROEN gemaakt */
   @keyframes answerFlash {
     0% { transform: scale(.9); opacity: 0 }
     10% { transform: scale(1.04); opacity: 1 }
@@ -81,7 +81,7 @@ const GlobalStyle = () => (
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
-    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92));
+    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92)); /* groen */
     color: #041507; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
     border: 1px solid rgba(255,255,255,.18);
   }
@@ -101,7 +101,7 @@ const GlobalStyle = () => (
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index: 9995; }
   .card {
     width: min(92vw, 720px);
-    background: #111;
+    background: #111; /* niet transparant voor leesbaarheid */
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
   }
@@ -116,6 +116,7 @@ const styles = {
     header: { display: "flex", flexDirection: "column", gap: 12, alignItems: "center" },
     h1: { fontSize: 28, fontWeight: 800, margin: 0 },
     row: { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "center" },
+    stack: { display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }, // << nieuw: alles onder elkaar
     section: {
         width: "100%", padding: 16, borderRadius: 16,
         background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
@@ -125,7 +126,7 @@ const styles = {
     btn: { padding: "10px 16px", borderRadius: 12, border: "none", background: "#16a34a", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" },
     btnAlt: { background: "#065f46" }, btnStop: { background: "#475569" },
     btnDanger: { padding: "6px 10px", borderRadius: 10, border: "none", background: "#dc2626", color: "#fff", fontSize: 13, cursor: "pointer" },
-    input: { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", minWidth: 200 },
+    input: { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", minWidth: 240 },
     letterInput: { marginTop: 8, width: 260, textAlign: "center", padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", fontSize: 16, boxSizing: "border-box" },
     list: { listStyle: "none", padding: 0, margin: 0 },
     li: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.1)" },
@@ -500,98 +501,44 @@ export default function DierenspelApp() {
         <>
             <GlobalStyle />
             <div style={styles.wrap}>
-                {/* Header */}
-                <div className="card" style={{ marginBottom: 12 }}>
-                    <h1 className="h1">{SITE_TITLE}</h1>
-                    <p className="muted" style={{ marginTop: 0 }}>
-                        Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter wordt de <b>laatste letter</b> van jouw woord.
-                    </p>
+                <header style={styles.header}>
+                    <h1 style={styles.h1}>Dierenspel</h1>
 
-                    <div className="row">
-                        {!room?.started && (
+                    {/* BEGIN UI: alles onder elkaar */}
+                    {!isOnlineRoom && (
+                        <div style={styles.stack}>
                             <input
-                                className="input"
+                                style={styles.input}
                                 placeholder="Jouw naam"
                                 value={playerName}
-                                onChange={(e) => setPlayerName(e.target.value)}
+                                onChange={e => setPlayerName(e.target.value)}
                             />
-                        )}
+                            <Button variant="alt" onClick={() => createRoom({ solo: false })}>Room aanmaken</Button>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                                <input style={styles.input} placeholder="Room code" value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} />
+                                <Button variant="alt" onClick={joinRoom}>Join</Button>
+                            </div>
+                            <Button onClick={() => (window.location.href = URL_PIMPAMPOF)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</Button>
+                        </div>
+                    )}
 
-                        {!isOnlineRoom ? (
-                            <>
-                                <button className="btn" onClick={createRoom} disabled={!online}>
-                                    Room aanmaken
-                                </button>
+                    {/* Room status / knoppen */}
+                    {isOnlineRoom && (
+                        <Row>
+                            {!room?.started && roomCode && (
+                                <span className="badge">Room: <b>{roomCode}</b></span>
+                            )}
+                            {isHost && !room?.started && <Button onClick={startGame}>Start spel</Button>}
+                            <Button variant="alt" onClick={leaveRoom}>Leave</Button>
+                        </Row>
+                    )}
 
-                                <input
-                                    className="input"
-                                    placeholder="Room code"
-                                    value={roomCodeInput}
-                                    onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                                />
-
-                                <button className="btn alt" onClick={joinRoom} disabled={!online}>
-                                    Join
-                                </button>
-
-                                {/* NIEUW: link naar PimPamPof */}
-                                <button
-                                    className="btn"
-                                    onClick={() => (window.location.href = "https://pimpampof.vercel.app/")}
-                                    title="Ga naar PimPamPof"
-                                >
-                                    ↔️ Naar PimPamPof
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                {!room?.started && isHost && (
-                                    <button
-                                        className="btn"
-                                        onClick={async () => {
-                                            await update(ref(db, `rooms_animals/${roomCode}`), {
-                                                started: true,
-                                                lastLetter: "?",
-                                                phase: "answer",
-                                                turn: room.playersOrder?.[0] || room.hostId,
-                                                turnStartAt: Date.now(),
-                                                cooldownEndAt: null,
-                                            });
-                                            setTimeout(() => inputRef.current?.focus(), 0);
-                                        }}
-                                    >
-                                        Start spel
-                                    </button>
-                                )}
-
-                                {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
-                                {room?.started && <span className="badge">Multiplayer actief</span>}
-
-                                {/* Pauze / Hervat */}
-                                {room?.started && !room?.paused && (
-                                    <button className="btn alt" onClick={pauseGame}>
-                                        ⏸️ Pauzeer (iedereen)
-                                    </button>
-                                )}
-                                {room?.started && room?.paused && (
-                                    <button className="btn" onClick={resumeGame}>
-                                        ▶️ Hervatten
-                                    </button>
-                                )}
-
-                                <button className="btn warn" onClick={onLeaveClick}>
-                                    Leave
-                                </button>
-
-                                {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
-                            </>
-                        )}
-
-                        {!online && !isOnlineRoom && (
-                            <span className="badge">Offline: maak verbinding om te spelen</span>
-                        )}
-                    </div>
-                </div>
+                    {isOnlineRoom && room?.started && (
+                        <span className="muted">
+                            {room.solo ? "Solo modus." : "Multiplayer — timer & punten actief (5s cooldown)."}
+                        </span>
+                    )}
+                </header>
 
                 {/* SPEELVELD */}
                 {isOnlineRoom && room?.started && (
