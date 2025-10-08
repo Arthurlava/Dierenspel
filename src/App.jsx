@@ -24,6 +24,7 @@ const db = getDatabase(app);
 /* -------- Spelconstanten -------- */
 const MAX_TIME_MS = 120000, MAX_POINTS = 200, DOUBLE_POF_BONUS = 100, JILLA_PENALTY = 25, COOLDOWN_MS = 5000;
 const PID_KEY = "ppp.playerId", NAME_KEY = "ppp.playerName", CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+const URL_PPP = import.meta.env.VITE_PPP_URL || "https://pimpampof.example.com";
 
 /* -------- Utils -------- */
 function calcPoints(ms) { return Math.max(0, Math.floor(MAX_POINTS * (1 - ms / MAX_TIME_MS))); }
@@ -280,6 +281,7 @@ export default function App(){
                 <button className="btn alt" onClick={createRoom} disabled={!online}>Room aanmaken</button>
                 <input className="input" placeholder="Room code" value={roomCodeInput} onChange={e=>setRoomCodeInput(e.target.value.toUpperCase())} />
                 <button className="btn alt" onClick={joinRoom} disabled={!online}>Join</button>
+                <button className="btn alt" onClick={() => (window.location.href = URL_PPP)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</button>
               </>
             ) : (
               <>
