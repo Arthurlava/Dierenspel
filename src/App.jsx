@@ -501,44 +501,99 @@ export default function DierenspelApp() {
         <>
             <GlobalStyle />
             <div style={styles.wrap}>
-                <header style={styles.header}>
-                    <h1 style={styles.h1}>Dierenspel</h1>
+                {/* Header */}
+                <div className="card" style={{ marginBottom: 12 }}>
+                    <h1 className="h1">{SITE_TITLE}</h1>
+                    <p className="muted" style={{ marginTop: 0 }}>
+                        Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter wordt de <b>laatste letter</b> van jouw woord.
+                    </p>
 
-                    {/* BEGIN UI: alles onder elkaar */}
-                    {!isOnlineRoom && (
-                        <div style={styles.stack}>
+                    <div className="row">
+                        {!room?.started && (
                             <input
-                                style={styles.input}
+                                className="input"
                                 placeholder="Jouw naam"
                                 value={playerName}
-                                onChange={e => setPlayerName(e.target.value)}
+                                onChange={(e) => setPlayerName(e.target.value)}
                             />
-                            <Button variant="alt" onClick={() => createRoom({ solo: false })}>Room aanmaken</Button>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-                                <input style={styles.input} placeholder="Room code" value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} />
-                                <Button variant="alt" onClick={joinRoom}>Join</Button>
-                            </div>
-                            <Button onClick={() => (window.location.href = URL_PIMPAMPOF)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</Button>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Room status / knoppen */}
-                    {isOnlineRoom && (
-                        <Row>
-                            {!room?.started && roomCode && (
-                                <span className="badge">Room: <b>{roomCode}</b></span>
-                            )}
-                            {isHost && !room?.started && <Button onClick={startGame}>Start spel</Button>}
-                            <Button variant="alt" onClick={leaveRoom}>Leave</Button>
-                        </Row>
-                    )}
+                        {!isOnlineRoom ? (
+                            <>
+                                <button className="btn" onClick={createRoom} disabled={!online}>
+                                    Room aanmaken
+                                </button>
 
-                    {isOnlineRoom && room?.started && (
-                        <span className="muted">
-                            {room.solo ? "Solo modus." : "Multiplayer — timer & punten actief (5s cooldown)."}
-                        </span>
-                    )}
-                </header>
+                                <input
+                                    className="input"
+                                    placeholder="Room code"
+                                    value={roomCodeInput}
+                                    onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                                />
+
+                                <button className="btn alt" onClick={joinRoom} disabled={!online}>
+                                    Join
+                                </button>
+
+                                {/* NIEUW: link naar PimPamPof */}
+                                <button
+                                    className="btn"
+                                    onClick={() => (window.location.href = "https://pimpampof.vercel.app/")}
+                                    title="Ga naar PimPamPof"
+                                >
+                                    ↔️ Naar PimPamPof
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                {!room?.started && isHost && (
+                                    <button
+                                        className="btn"
+                                        onClick={async () => {
+                                            await update(ref(db, `rooms_animals/${roomCode}`), {
+                                                started: true,
+                                                lastLetter: "?",
+                                                phase: "answer",
+                                                turn: room.playersOrder?.[0] || room.hostId,
+                                                turnStartAt: Date.now(),
+                                                cooldownEndAt: null,
+                                            });
+                                            setTimeout(() => inputRef.current?.focus(), 0);
+                                        }}
+                                    >
+                                        Start spel
+                                    </button>
+                                )}
+
+                                {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
+                                {room?.started && <span className="badge">Multiplayer actief</span>}
+
+                                {/* Pauze / Hervat */}
+                                {room?.started && !room?.paused && (
+                                    <button className="btn alt" onClick={pauseGame}>
+                                        ⏸️ Pauzeer (iedereen)
+                                    </button>
+                                )}
+                                {room?.started && room?.paused && (
+                                    <button className="btn" onClick={resumeGame}>
+                                        ▶️ Hervatten
+                                    </button>
+                                )}
+
+                                <button className="btn warn" onClick={onLeaveClick}>
+                                    Leave
+                                </button>
+
+                                {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
+                            </>
+                        )}
+
+                        {!online && !isOnlineRoom && (
+                            <span className="badge">Offline: maak verbinding om te spelen</span>
+                        )}
+                    </div>
+                </div>
+
 
                 {/* SPEELVELD */}
                 {isOnlineRoom && room?.started && (
