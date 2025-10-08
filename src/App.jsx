@@ -7,7 +7,7 @@ import {
 } from "firebase/database";
 
 /* -------- Config -------- */
-const SITE_TITLE = "Dierenspel";
+const SITE_TITLE = "PimPamPof — Dierenspel";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDuYvtJbjj0wQbSwIBtyHuPeF71poPIBUg",
@@ -22,20 +22,26 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* -------- Spelconstanten -------- */
-const MAX_TIME_MS = 120000, MAX_POINTS = 200, DOUBLE_POF_BONUS = 100, JILLA_PENALTY = 25, COOLDOWN_MS = 5000;
-const PID_KEY = "ppp.playerId", NAME_KEY = "ppp.playerName", CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-const URL_PPP = import.meta.env.VITE_PPP_URL || "https://pimpampof.example.com";
+const MAX_TIME_MS = 120000;
+const MAX_POINTS = 200;
+const DOUBLE_POF_BONUS = 100;
+const JILLA_PENALTY = 25;
+const COOLDOWN_MS = 10000; // <-- 10 seconden pauzetijd na beurt
+
+const PID_KEY = "ppp.playerId", NAME_KEY = "ppp.playerName";
+const CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /* -------- Utils -------- */
 function calcPoints(ms) { return Math.max(0, Math.floor(MAX_POINTS * (1 - ms / MAX_TIME_MS))); }
 function makeRoomCode(len = 5) { let s = ""; for (let i = 0; i < len; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
 function getOrCreatePlayerId() { try { const x = localStorage.getItem(PID_KEY); if (x) return x; const id = crypto.randomUUID(); localStorage.setItem(PID_KEY, id); return id; } catch { return crypto.randomUUID(); } }
 function normalize(s) { return (s || "").toString().trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, ""); }
-function firstLetter(s){const n=normalize(s).replace(/[^a-z0-9]/g,"");return n.charAt(0)||""}
-function lastLetter(s){const n=normalize(s).replace(/[^a-z0-9]/g,"");return n.charAt(n.length-1)||""}
+function normalizeStrictWord(s){ return normalize(s).replace(/[^a-z0-9]/g,""); } // voor begin/laatste letter & duplicate check
+function firstLetter(s){const n=normalizeStrictWord(s);return n.charAt(0)||""}
+function lastLetter(s){const n=normalizeStrictWord(s);return n.charAt(n.length-1)||""}
 function isDoublePof(word){const a=firstLetter(word),b=lastLetter(word);return a&&b&&a===b;}
 function useOnline(){const[online,setOnline]=useState(navigator.onLine);useEffect(()=>{const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener("online",on);window.addEventListener("offline",off);return()=>{window.removeEventListener("online",on);window.removeEventListener("offline",off);}},[]);return online;}
-function ordinal(n){const s=["e","e","e"];const v=n%100;if(v>10 && v<14)return `${n}e`;const r=n%10;return `${n}${(r===1)?"e":(r===2)?"e":(r===3)?"e":"e"}`;} // NL: tonen allemaal "e" (1e, 2e, 3e, ...)
+function ordinal(n){return `${n}e`;} // NL: 1e, 2e, 3e, ...
 
 /* -------- Style -------- */
 const GlobalStyle=()=>(
@@ -55,13 +61,7 @@ const GlobalStyle=()=>(
   .letterBig{display:grid;place-items:center;width:120px;height:120px;border-radius:28px;background:radial-gradient(circle at 30% 30%, var(--brand1), var(--brand2));color:#041507;font-size:56px;font-weight:900;border:1px solid rgba(0,0,0,.2);box-shadow:0 14px 40px rgba(34,197,94,.35);margin:8px auto 12px;}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:linear-gradient(90deg,var(--brand1),var(--brand2));color:#041507;padding:10px 14px;border-radius:999px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.35);z-index:10}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9998}
-.dialog{
-  width:min(92vw, 760px);
-  background:#0f172a;                 
-  border:1px solid #1f2937;   
-  border-radius:16px;
-  padding:16px;
-  box-shadow:0 24px 70px rgba(0,0,0,.55);}
+  .dialog{width:min(92vw, 760px);background:#0f172a;border:1px solid #1f2937;border-radius:16px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
   table{width:100%;border-collapse:collapse} th,td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.12);text-align:left}
   `}</style>
 );
@@ -126,14 +126,23 @@ export default function App(){
   async function createRoom(){
     if(!online){alert("Je bent offline.");return;}
     const code=makeRoomCode();
-    const obj={createdAt:serverTimestamp(),hostId:playerId,
+    const obj={
+      createdAt:serverTimestamp(),hostId:playerId,
       players:{[playerId]:{name:playerName||"Host",joinedAt:serverTimestamp()}},
       participants:{[playerId]:{name:playerName||"Host",firstJoinedAt:serverTimestamp()}},
-      playersOrder:[playerId],turn:playerId,lastLetter:"?",started:false,solo:false,
-      jail:{},scores:{},stats:{},phase:"answer",turnStartAt:null,cooldownEndAt:null,version:4};
+      playersOrder:[playerId],
+      turn:playerId,
+      lastLetter:"?",
+      started:false,solo:false,
+      jail:{},scores:{},stats:{},
+      usedAnimals:{},               // <-- nieuw: set van alle gebruikte dieren (genormaliseerd)
+      paused:false, pausedAt:null,  // <-- pauze state
+      phase:"answer", turnStartAt:null, cooldownEndAt:null, version:5
+    };
     await set(ref(db,`rooms_animals/${code}`),obj);
     setRoomCode(code); setIsHost(true); attachRoom(code);
   }
+
   async function joinRoom(){
     if(!online){alert("Je bent offline.");return;}
     const code=(roomCodeInput||"").trim().toUpperCase(); if(!code){alert("Voer een room code in.");return;}
@@ -143,7 +152,8 @@ export default function App(){
       d.participants??={}; d.participants[playerId]=d.participants[playerId]||{name:playerName||"Speler",firstJoinedAt:serverTimestamp()};
       d.participants[playerId].name=playerName||d.participants[playerId].name;
       d.playersOrder??=[]; if(!d.playersOrder.includes(playerId)) d.playersOrder.push(playerId);
-      d.jail??={}; d.scores??={}; d.stats??={}; d.phase??="answer";
+      d.jail??={}; d.scores??={}; d.stats??={}; d.usedAnimals??={};
+      d.phase??="answer"; if(d.paused==null){ d.paused=false; d.pausedAt=null; }
       if(!d.turn||!d.players[d.turn]) d.turn=d.playersOrder[0];
       if(!d.hostId||!d.players[d.hostId]) d.hostId=d.playersOrder[0];
       if(!d.turnStartAt && !d.solo && d.started) d.turnStartAt=Date.now();
@@ -160,19 +170,45 @@ export default function App(){
     d.turn=ids[(ids.indexOf(d.turn)+1)%ids.length]; return d.turn;
   }
 
-  useEffect(()=>{ if(!roomCode||!room) return; if(room.solo) return;
+  // cooldown -> answer overgang, maar NIET als pauze actief is
+  useEffect(()=>{ if(!roomCode||!room) return; if(room.solo) return; if(room.paused) return;
     if(room.phase==="cooldown" && room.cooldownEndAt && now>=room.cooldownEndAt){
-      runTransaction(ref(db,`rooms_animals/${roomCode}`),(d)=>{ if(!d||d.solo) return d; if(d.phase!=="cooldown") return d; if(!d.cooldownEndAt || Date.now()<d.cooldownEndAt) return d; d.phase="answer"; d.turnStartAt=Date.now(); return d; });
+      runTransaction(ref(db,`rooms_animals/${roomCode}`),(d)=>{ if(!d||d.solo||d.paused) return d; if(d.phase!=="cooldown") return d; if(!d.cooldownEndAt || Date.now()<d.cooldownEndAt) return d; d.phase="answer"; d.turnStartAt=Date.now(); return d; });
     }
-  },[roomCode,room?.phase,room?.cooldownEndAt,now,room]);
+  },[roomCode,room?.phase,room?.cooldownEndAt,room?.paused,now,room]);
+
+  // --- Pauzeer / Hervat ---
+  async function pauseGame(){
+    if(!roomCode||!room) return;
+    await runTransaction(ref(db,`rooms_animals/${roomCode}`),(d)=>{ if(!d) return d; if(d.paused) return d; d.paused=true; d.pausedAt=Date.now(); return d; });
+  }
+  async function resumeGame(){
+    if(!roomCode||!room) return;
+    await runTransaction(ref(db,`rooms_animals/${roomCode}`),(d)=>{ if(!d) return d; if(!d.paused) return d;
+      const delta = Date.now() - (d.pausedAt || Date.now());
+      if (d.cooldownEndAt) d.cooldownEndAt += delta;
+      if (d.turnStartAt)  d.turnStartAt  += delta;
+      d.paused=false; d.pausedAt=null; return d;
+    });
+  }
 
   async function submitAnimal(){
     if(!room||!room.started) return;
+    if(room.paused){ showToast("⏸️ Spel is gepauzeerd"); return; }
+
     const raw=animalInput.trim(); if(!raw) return;
+
+    // Duplicate check (room-wide), spatie/accents/streepjes negeren
+    const key = normalizeStrictWord(raw);
+    if (room.usedAnimals && room.usedAnimals[key]) {
+      showToast("❌ Dit dier is al genoemd in deze room");
+      return;
+    }
+
     const req=(room.lastLetter && room.lastLetter!=="?")?room.lastLetter:null;
     const beginsOk=!req || firstLetter(raw)===req;
 
-    const isMP=!!room && !room.solo;
+    const isMP=!!room && !room.solo; // solo -> geen punten
     const elapsed=Math.max(0,Date.now()-(room?.turnStartAt??Date.now()));
     const basePoints=isMP?calcPoints(elapsed):0;
     const double=isDoublePof(raw);
@@ -181,7 +217,17 @@ export default function App(){
     const nextLast=lastLetter(raw)||"?";
 
     const r=ref(db,`rooms_animals/${roomCode}`);
-    await runTransaction(r,(d)=>{ if(!d) return d; if(!d.players||!d.players[d.turn]) return d; if(d.turn!==playerId) return d; if(d.phase!=="answer") return d;
+    await runTransaction(r,(d)=>{ if(!d) return d; if(d.paused) return d; // niet verwerken tijdens pauze
+      if(!d.players||!d.players[d.turn]) return d; if(d.turn!==playerId) return d; if(d.phase!=="answer") return d;
+
+      // server-side duplicate guard (race condition-proof)
+      d.usedAnimals ??= {};
+      const k = normalizeStrictWord(raw);
+      if (d.usedAnimals[k]) { return d; } // geweigerd, geen statechange
+
+      // Zet als gebruikt
+      d.usedAnimals[k] = { word: raw, by: playerId, at: Date.now() };
+
       if(isMP){ d.scores??={}; d.stats??={};
         if(beginsOk) d.scores[playerId]=(d.scores[playerId]||0)+totalGain;
         const s=d.stats[playerId]||{totalTimeMs:0,answeredCount:0,jillaCount:0,doubleCount:0};
@@ -198,9 +244,11 @@ export default function App(){
   }
 
   async function useJilla(){
-    if(!room) return; const isMP=!!room && !room.solo;
+    if(!room) return; if(room.paused){ showToast("⏸️ Spel is gepauzeerd"); return; }
+    const isMP=!!room && !room.solo;
     const r=ref(db,`rooms_animals/${roomCode}`);
-    await runTransaction(r,(d)=>{ if(!d) return d; if(!d.players||!d.players[d.turn]) return d; if(d.turn!==playerId) return d; if(d.phase!=="answer") return d;
+    await runTransaction(r,(d)=>{ if(!d) return d; if(d.paused) return d;
+      if(!d.players||!d.players[d.turn]) return d; if(d.turn!==playerId) return d; if(d.phase!=="answer") return d;
       d.jail??={}; d.jail[playerId]=(d.jail[playerId]||0)+1;
       if(isMP){ d.scores??={}; d.stats??={}; d.scores[playerId]=(d.scores[playerId]||0)-JILLA_PENALTY;
         const s=d.stats[playerId]||{totalTimeMs:0,answeredCount:0,jillaCount:0,doubleCount:0}; s.jillaCount+=1; d.stats[playerId]=s;
@@ -211,23 +259,23 @@ export default function App(){
     if(isMP) showToast(`-${JILLA_PENALTY} punten (Jilla)`);
   }
 
-  // ---- API check (laat zoals je al had) ----
+  // ---- API check (ongewijzigd) ----
   async function checkAnimalViaAPI(){
     const q=animalInput.trim(); if(!q) return setApiState({status:"idle",msg:""});
     try{
       setApiState({status:"checking",msg:"Bezig met controleren…"});
       const r=await fetch(`/api/check-animal?name=${encodeURIComponent(q)}`); const j=await r.json();
       if(!j.ok) return setApiState({status:"error",msg:"API-fout"});
-      if(j.found){ const name=j.vernacularName||j.scientificName||q; setApiState({status:"ok",msg:`✅ Gevonden: ${name} (${j.source}, conf. ${j.confidence??0})`}); }
+      if(j.found){ const name=j.vernacularName||j.scientificName||q; setApiState({status:"ok",msg:`✅ Gevonden: ${name} (${j.source||"api"})`}); }
       else setApiState({status:"notfound",msg:"ℹ️ Niet gevonden in database"});
     }catch{ setApiState({status:"error",msg:"Netwerkfout"}); }
   }
 
   const myJail = isOnlineRoom && room?.jail ? (room.jail[playerId]||0) : 0;
-  const canType = isMyTurn && myJail===0 && !inCooldown && room?.started;
+  const canType = isMyTurn && myJail===0 && !inCooldown && room?.started && !room?.paused;
   useEffect(()=>{ if(canType) setTimeout(()=>inputRef.current?.focus(),0); },[canType]);
 
-  // ---------- Leaderboard helpers ----------
+  // Leave + leaderboard (ongewijzigd)
   function buildLeaderboardSnapshot(rm){
     const par = rm.participants ? Object.keys(rm.participants) : [];
     const arr = par.map(id=>{
@@ -243,7 +291,7 @@ export default function App(){
   const [leaderOpen,setLeaderOpen]=useState(false);
   const [leaderData,setLeaderData]=useState(null);
 
-  async function leaveRoom(){
+  async function leaveRoomCore(){
     if(!roomCode) return;
     await runTransaction(ref(db,`rooms_animals/${roomCode}`),(d)=>{ if(!d) return d;
       if(d.players && d.players[playerId]) delete d.players[playerId];
@@ -252,7 +300,7 @@ export default function App(){
       const ids=d.players?Object.keys(d.players):[]; if(ids.length===0) return null;
       if(!d.hostId||!d.players[d.hostId]) d.hostId=d.playersOrder?.[0]||ids[0];
       if(!d.turn||!d.players[d.turn]) d.turn=d.playersOrder?.[0]||d.hostId||ids[0];
-      return d; // scores/stats/participants blijven staan!
+      return d; // scores/stats/participants/usedAnimals blijven!
     });
     if(connIdRef.current){ remove(ref(db,`rooms_animals/${roomCode}/presence/${playerId}/${connIdRef.current}`)).catch(()=>{}); connIdRef.current=null; }
     setRoom(null); setRoomCode(""); setIsHost(false);
@@ -260,7 +308,7 @@ export default function App(){
 
   async function onLeaveClick(){
     if(room && (room.participants || room.players)){ const snap=buildLeaderboardSnapshot(room); setLeaderData(snap); setLeaderOpen(true); }
-    await leaveRoom();
+    await leaveRoomCore();
   }
 
   /* -------------------- UI -------------------- */
@@ -278,16 +326,30 @@ export default function App(){
             {!room?.started && (<input className="input" placeholder="Jouw naam" value={playerName} onChange={e=>setPlayerName(e.target.value)} />)}
             {!isOnlineRoom ? (
               <>
-                <button className="btn alt" onClick={createRoom} disabled={!online}>Room aanmaken</button>
+                <button className="btn" onClick={createRoom} disabled={!online}>Room aanmaken</button>
                 <input className="input" placeholder="Room code" value={roomCodeInput} onChange={e=>setRoomCodeInput(e.target.value.toUpperCase())} />
                 <button className="btn alt" onClick={joinRoom} disabled={!online}>Join</button>
-                <button className="btn alt" onClick={() => (window.location.href = URL_PPP)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</button>
               </>
             ) : (
               <>
-                {!room?.started && isHost && <button className="btn" onClick={async()=>{await update(ref(db,`rooms_animals/${roomCode}`),{started:true,lastLetter:"?",phase:"answer",turn:room.playersOrder?.[0]||room.hostId,turnStartAt:Date.now(),cooldownEndAt:null}); setTimeout(()=>inputRef.current?.focus(),0);}}>Start spel</button>}
+                {!room?.started && isHost && (
+                  <button
+                    className="btn"
+                    onClick={async()=>{
+                      await update(ref(db,`rooms_animals/${roomCode}`),{
+                        started:true,lastLetter:"?",phase:"answer",
+                        turn:room.playersOrder?.[0]||room.hostId,
+                        turnStartAt:Date.now(),cooldownEndAt:null
+                      });
+                      setTimeout(()=>inputRef.current?.focus(),0);
+                    }}
+                  >Start spel</button>
+                )}
                 {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
                 {room?.started && <span className="badge">Multiplayer actief</span>}
+                {/* Pauze / Hervat */}
+                {room?.started && !room?.paused && <button className="btn alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</button>}
+                {room?.started &&  room?.paused && <button className="btn" onClick={resumeGame}>▶️ Hervatten</button>}
                 <button className="btn warn" onClick={onLeaveClick}>Leave</button>
                 {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
               </>
@@ -302,6 +364,7 @@ export default function App(){
           <div className="center" style={{ marginBottom: 8 }}>
             <div className="row" style={{ justifyContent: "center" }}>
               <span className="badge">Vereiste beginletter: <b>{room?.lastLetter || "?"}</b></span>
+              {room?.paused && <span className="badge">⏸️ Gepauzeerd</span>}
               {isOnlineRoom && !room?.solo && (
                 inCooldown
                   ? <span className="badge">⏳ Volgende ronde over {Math.ceil(cooldownLeftMs/1000)}s</span>
@@ -327,7 +390,8 @@ export default function App(){
                   className="input"
                   style={{ minWidth: 260, maxWidth: 420, width: "100%" }}
                   placeholder={
-                    !isMyTurn ? "Niet jouw beurt"
+                    room?.paused ? "Gepauzeerd…"
+                    : !isMyTurn ? "Niet jouw beurt"
                     : (room?.jail?.[playerId]||0)>0 ? "Jilla actief — beurt wordt overgeslagen"
                     : inCooldown ? "Wachten…"
                     : "Typ een dier en druk Enter"
@@ -335,13 +399,13 @@ export default function App(){
                   value={animalInput}
                   onChange={(e)=>{ setAnimalInput(e.target.value); setApiState({status:"idle",msg:""}); }}
                   onKeyDown={(e)=>{ if(e.key==="Enter") submitAnimal(); }}
-                  disabled={!isMyTurn || (room?.jail?.[playerId]||0)>0 || inCooldown}
+                  disabled={!isMyTurn || (room?.jail?.[playerId]||0)>0 || inCooldown || room?.paused}
                 />
               </div>
               <div className="row" style={{ justifyContent: "center", marginTop: 8 }}>
-                <button className="btn alt" onClick={checkAnimalViaAPI} disabled={!animalInput.trim()}>Check dier (API)</button>
-                {isMyTurn && !inCooldown && <button className="btn alt" onClick={useJilla}>Jilla (skip)</button>}
-                <button className="btn" onClick={submitAnimal} disabled={!isMyTurn || (room?.jail?.[playerId]||0)>0 || inCooldown}>Indienen</button>
+                <button className="btn alt" onClick={checkAnimalViaAPI} disabled={!animalInput.trim() || room?.paused}>Check dier (API)</button>
+                {isMyTurn && !inCooldown && !room?.paused && <button className="btn alt" onClick={useJilla}>Jilla (skip)</button>}
+                <button className="btn" onClick={submitAnimal} disabled={!isMyTurn || (room?.jail?.[playerId]||0)>0 || inCooldown || room?.paused}>Indienen</button>
               </div>
               {apiState.status!=="idle" && (
                 <div className="center" style={{ marginTop: 8 }}>
