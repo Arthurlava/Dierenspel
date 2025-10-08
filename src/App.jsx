@@ -9,15 +9,16 @@ import {
 /* =========================
    ENV + CONSTANTS
 ========================= */
+const SITE_TITLE = "PimPamPof — Dierenspel";
 const URL_PIMPAMPOF =
     (import.meta?.env?.VITE_PIMPAMPOF_URL || "").trim() || "https://www.pimpampof.nl/";
 
-const MAX_TIME_MS = 120000;   // 2 min -> 0 punten
-const MAX_POINTS = 200;      // max bij direct antwoord
-const DOUBLE_POF_BONUS = 100; // bonus wanneer antwoord start met "vereiste letter"
-const COOLDOWN_MS = 5000;     // pauze na ieders beurt (alleen MP)
+const MAX_TIME_MS = 120000;
+const MAX_POINTS = 200;
+const DOUBLE_POF_BONUS = 100;
+const COOLDOWN_MS = 5000;
 
-// Firebase (laat zoals je eerder gebruikte)
+// Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyDuYvtJbjj0wQbSwIBtyHuPeF71poPIBUg",
     authDomain: "pimpampof-aec32.firebaseapp.com",
@@ -57,7 +58,6 @@ const GlobalStyle = () => (
   }
   .muted { color: rgba(255,255,255,0.7); font-size:12px; }
 
-  /* Pof */
   @keyframes pofPop {
     0% { transform: scale(0.6); opacity: 0; }
     20% { transform: scale(1.12); opacity: 1; }
@@ -71,7 +71,6 @@ const GlobalStyle = () => (
     box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: pofPop 1200ms ease-out forwards; letter-spacing: .5px;
   }
 
-  /* Answer flash — GROEN gemaakt */
   @keyframes answerFlash {
     0% { transform: scale(.9); opacity: 0 }
     10% { transform: scale(1.04); opacity: 1 }
@@ -81,12 +80,11 @@ const GlobalStyle = () => (
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
-    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92)); /* groen */
+    background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92));
     color: #041507; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: answerFlash 900ms ease-out forwards;
     border: 1px solid rgba(255,255,255,.18);
   }
 
-  /* Score toast */
   @keyframes scoreToast {
     0% { transform: translateY(8px); opacity: 0; }
     15% { transform: translateY(0); opacity: 1; }
@@ -101,22 +99,19 @@ const GlobalStyle = () => (
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index: 9995; }
   .card {
     width: min(92vw, 720px);
-    background: #111; /* niet transparant voor leesbaarheid */
+    background: #111;
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
   }
   .table { width:100%; border-collapse: collapse; }
   .table th, .table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
   .table th { font-weight: 700; }
-`}</style>
+  `}</style>
 );
 
 const styles = {
     wrap: { display: "flex", flexDirection: "column", gap: 20, textAlign: "center", alignItems: "center" },
-    header: { display: "flex", flexDirection: "column", gap: 12, alignItems: "center" },
-    h1: { fontSize: 28, fontWeight: 800, margin: 0 },
     row: { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "center" },
-    stack: { display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }, // << nieuw: alles onder elkaar
     section: {
         width: "100%", padding: 16, borderRadius: 16,
         background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
@@ -124,8 +119,7 @@ const styles = {
     },
     sectionTitle: { margin: "0 0 8px 0", fontSize: 18, fontWeight: 700 },
     btn: { padding: "10px 16px", borderRadius: 12, border: "none", background: "#16a34a", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" },
-    btnAlt: { background: "#065f46" }, btnStop: { background: "#475569" },
-    btnDanger: { padding: "6px 10px", borderRadius: 10, border: "none", background: "#dc2626", color: "#fff", fontSize: 13, cursor: "pointer" },
+    btnAlt: { background: "#065f46" },
     input: { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", minWidth: 240 },
     letterInput: { marginTop: 8, width: 260, textAlign: "center", padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", outline: "none", fontSize: 16, boxSizing: "border-box" },
     list: { listStyle: "none", padding: 0, margin: 0 },
@@ -171,6 +165,15 @@ function isDoublePof(requiredLetter, word) {
 function normalizeAnimalKey(w) {
     return (w || "").toLowerCase().normalize("NFKD").replace(/[^\p{Letter}0-9]/gu, "");
 }
+function useOnline() {
+    const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+    useEffect(() => {
+        const on = () => setOnline(true), off = () => setOnline(false);
+        window.addEventListener("online", on); window.addEventListener("offline", off);
+        return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+    }, []);
+    return online;
+}
 
 /* =========================
    SMALL UI
@@ -178,17 +181,13 @@ function normalizeAnimalKey(w) {
 function Section({ title, children }) {
     return (<div style={styles.section}>{title && <h2 style={styles.sectionTitle}>{title}</h2>}{children}</div>);
 }
-function Row({ children }) { return <div style={styles.row}>{children}</div>; }
-function Button({ children, onClick, variant, disabled, title }) {
-    let s = { ...styles.btn }; if (variant === "alt") s = { ...s, ...styles.btnAlt }; if (variant === "stop") s = { ...s, ...styles.btnStop };
-    return <button onClick={onClick} style={{ ...s, opacity: disabled ? .6 : 1, cursor: disabled ? "not-allowed" : "pointer" }} disabled={disabled} title={title}>{children}</button>;
-}
-function DangerButton({ children, onClick }) { return <button onClick={onClick} style={styles.btnDanger}>{children}</button>; }
 
 /* =========================
    COMPONENT
 ========================= */
 export default function DierenspelApp() {
+    const online = useOnline();
+
     const [playerName, setPlayerName] = useState(() => localStorage.getItem(NAME_KEY) || "");
     useEffect(() => { localStorage.setItem(NAME_KEY, playerName || ""); }, [playerName]);
     const [playerId] = useState(() => getOrCreatePlayerId());
@@ -297,8 +296,8 @@ export default function DierenspelApp() {
             cooldownEndAt: null,
             scores: {},
             stats: {},
-            answers: [],       // geschiedenis
-            used: {},          // normalized dier -> true (repeat protect)
+            answers: [],
+            used: {},
             phase: "answer",
             version: 1
         };
@@ -374,7 +373,6 @@ export default function DierenspelApp() {
         const w = (answer || "").trim();
         if (!w) return;
 
-        // repeat protect
         const key = normalizeAnimalKey(w);
         if (key && usedKeysSet.has(key)) {
             alert("Dit dier is al geweest in deze room.");
@@ -445,7 +443,10 @@ export default function DierenspelApp() {
         });
 
         if (isDouble) triggerPof(`Dubble pof! +${DOUBLE_POF_BONUS}`);
-        if (isMP && totalGain > 0) triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
+        if (isMP && totalGain > 0) {
+            setScoreToast({ show: true, text: `+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, type: "plus" });
+            setTimeout(() => setScoreToast(s => ({ ...s, show: false })), 1400);
+        }
 
         setAnswer("");
         setTimeout(() => inputRef.current?.focus(), 0);
@@ -520,7 +521,7 @@ export default function DierenspelApp() {
 
                         {!isOnlineRoom ? (
                             <>
-                                <button className="btn" onClick={createRoom} disabled={!online}>
+                                <button className="btn" onClick={() => createRoom()} disabled={!online}>
                                     Room aanmaken
                                 </button>
 
@@ -531,14 +532,13 @@ export default function DierenspelApp() {
                                     onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
                                 />
 
-                                <button className="btn alt" onClick={joinRoom} disabled={!online}>
+                                <button className="btn btnAlt" onClick={joinRoom} disabled={!online}>
                                     Join
                                 </button>
 
-                                {/* NIEUW: link naar PimPamPof */}
                                 <button
                                     className="btn"
-                                    onClick={() => (window.location.href = "https://pimpampof.vercel.app/")}
+                                    onClick={() => (window.location.href = URL_PIMPAMPOF)}
                                     title="Ga naar PimPamPof"
                                 >
                                     ↔️ Naar PimPamPof
@@ -547,40 +547,14 @@ export default function DierenspelApp() {
                         ) : (
                             <>
                                 {!room?.started && isHost && (
-                                    <button
-                                        className="btn"
-                                        onClick={async () => {
-                                            await update(ref(db, `rooms_animals/${roomCode}`), {
-                                                started: true,
-                                                lastLetter: "?",
-                                                phase: "answer",
-                                                turn: room.playersOrder?.[0] || room.hostId,
-                                                turnStartAt: Date.now(),
-                                                cooldownEndAt: null,
-                                            });
-                                            setTimeout(() => inputRef.current?.focus(), 0);
-                                        }}
-                                    >
+                                    <button className="btn" onClick={startGame}>
                                         Start spel
                                     </button>
                                 )}
-
                                 {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
                                 {room?.started && <span className="badge">Multiplayer actief</span>}
 
-                                {/* Pauze / Hervat */}
-                                {room?.started && !room?.paused && (
-                                    <button className="btn alt" onClick={pauseGame}>
-                                        ⏸️ Pauzeer (iedereen)
-                                    </button>
-                                )}
-                                {room?.started && room?.paused && (
-                                    <button className="btn" onClick={resumeGame}>
-                                        ▶️ Hervatten
-                                    </button>
-                                )}
-
-                                <button className="btn warn" onClick={onLeaveClick}>
+                                <button className="btn" style={{ background: "#dc2626" }} onClick={leaveRoom}>
                                     Leave
                                 </button>
 
@@ -593,7 +567,6 @@ export default function DierenspelApp() {
                         )}
                     </div>
                 </div>
-
 
                 {/* SPEELVELD */}
                 {isOnlineRoom && room?.started && (
@@ -613,10 +586,10 @@ export default function DierenspelApp() {
                                     {inCooldown ? (
                                         <div className="badge">⏳ Volgende ronde over {Math.ceil(cooldownLeftMs / 1000)}s</div>
                                     ) : (
-                                        <Row>
+                                        <div className="row">
                                             <span className="badge">⏱️ Tijd: {Math.floor(answerElapsedMs / 1000)}s / {Math.floor(MAX_TIME_MS / 1000)}s</span>
                                             <span className="badge">🏅 Punten nu: <b>{potentialPoints}</b></span>
-                                        </Row>
+                                        </div>
                                     )}
                                 </>
                             )}
