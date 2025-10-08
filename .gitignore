@@ -1,0 +1,27 @@
+﻿# Node / Vite / React
+node_modules/
+dist/
+.vscode/
+.vercel/
+*.log
+npm-debug.log*
+yarn-*.log*
+pnpm-debug.log*
+.env
+.env.*
+
+# VS/VSCode project caches
+.vs/
+*.user
+*.suo
+
+# Unity (je OLD-map die errors gaf)
+OLD/
+Library/
+Temp/
+Obj/
+Logs/
+MemoryCaptures/
+Build/
+Builds/
+UserSettings/
