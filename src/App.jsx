@@ -351,7 +351,7 @@ export default function App() {
             <div className="wrap">
                 {/* Header */}
                 <div className="card" style={{ marginBottom: 12 }}>
-                    <h1 className="h1">PimPamPof — Dierenspel</h1>
+                    <h1 className="h1">Dierenspel</h1>
                     <p className="muted" style={{ marginTop: 0 }}>
                         Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter wordt de <b>laatste letter</b> van jouw woord.
                     </p>
