@@ -520,7 +520,7 @@ export default function DierenspelApp() {
 
                         {!isOnlineRoom ? (
                             <>
-                                <button className="btn" onClick={createRoom} disabled={!online}>Room aanmaken</button>
+                                <Button className="alt btn" onClick={createRoom} disabled={!online}>Room aanmaken</Button>
                                 <input
                                     className="input"
                                     placeholder="Room code"
