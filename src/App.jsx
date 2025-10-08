@@ -339,7 +339,7 @@ export default function App(){
                 <button className="btn" onClick={createRoom} disabled={!online}>Room aanmaken</button>
                 <input className="input" placeholder="Room code" value={roomCodeInput} onChange={e=>setRoomCodeInput(e.target.value.toUpperCase())} />
                 <button className="btn alt" onClick={joinRoom} disabled={!online}>Join</button>
-                <button onClick={() => (window.location.href = URL_PPP)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</button>
+                <button className="btn alt" onClick={() => (window.location.href = URL_PPP)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</button>
               </>
             ) : (
               <>
