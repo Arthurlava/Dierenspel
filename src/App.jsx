@@ -28,7 +28,7 @@ const DOUBLE_POF_BONUS = 100;
 const JILLA_PENALTY = 25;
 const COOLDOWN_MS = 10000; // <-- 10 seconden pauzetijd na beurt
 
-const URL_PPP = import.meta.env.VITE_PIMPAMPOF_URL || "https://www.pimpampof.nl/";
+const URL_PPP = import.meta.env.VITE_PIMPAMPOF_URL || "https://pimpampof.vercel.app/";
 
 const PID_KEY = "ppp.playerId", NAME_KEY = "ppp.playerName";
 const CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
