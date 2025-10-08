@@ -21,12 +21,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* -------- Spelconstanten -------- */
+/* -------- Spelconstanten --------- */
 const MAX_TIME_MS = 120000;
 const MAX_POINTS = 200;
 const DOUBLE_POF_BONUS = 100;
 const JILLA_PENALTY = 25;
 const COOLDOWN_MS = 10000; // <-- 10 seconden pauzetijd na beurt
+
+const URL_PPP = import.meta.env.VITE_PIMPAMPOF_URL || "https://www.pimpampof.nl/";
 
 const PID_KEY = "ppp.playerId", NAME_KEY = "ppp.playerName";
 const CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -337,6 +339,8 @@ export default function App(){
                 <button className="btn" onClick={createRoom} disabled={!online}>Room aanmaken</button>
                 <input className="input" placeholder="Room code" value={roomCodeInput} onChange={e=>setRoomCodeInput(e.target.value.toUpperCase())} />
                 <button className="btn alt" onClick={joinRoom} disabled={!online}>Join</button>
+                <Button onClick={() => (window.location.href = URL_PPP)} title="Ga naar PimPamPof">↔️ Naar PimPamPof</Button>
+
               </>
             ) : (
               <>
