@@ -502,14 +502,16 @@ export default function DierenspelApp() {
         <>
             <GlobalStyle />
             <div style={styles.wrap}>
-                {/* Header */}
+                {/* ───── BEGIN: vervang je bestaande <header> door dit blok ───── */}
                 <div className="card" style={{ marginBottom: 12 }}>
                     <h1 className="h1">{SITE_TITLE}</h1>
                     <p className="muted" style={{ marginTop: 0 }}>
-                        Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter wordt de <b>laatste letter</b> van jouw woord.
+                        Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter
+                        wordt de <b>laatste letter</b> van jouw woord.
                     </p>
 
                     <div className="row">
+                        {/* Naamveld alleen tonen vóór start */}
                         {!room?.started && (
                             <input
                                 className="input"
@@ -519,9 +521,10 @@ export default function DierenspelApp() {
                             />
                         )}
 
+                        {/* Niet in een room → maak/join */}
                         {!isOnlineRoom ? (
                             <>
-                                <button className="btn" onClick={() => createRoom()} disabled={!online}>
+                                <button className="btn" onClick={() => createRoom({ solo: false })} disabled={!online}>
                                     Room aanmaken
                                 </button>
 
@@ -532,29 +535,23 @@ export default function DierenspelApp() {
                                     onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
                                 />
 
-                                <button className="btn btnAlt" onClick={joinRoom} disabled={!online}>
+                                <button className="btn alt" onClick={joinRoom} disabled={!online}>
                                     Join
-                                </button>
-
-                                <button
-                                    className="btn"
-                                    onClick={() => (window.location.href = URL_PIMPAMPOF)}
-                                    title="Ga naar PimPamPof"
-                                >
-                                    ↔️ Naar PimPamPof
                                 </button>
                             </>
                         ) : (
                             <>
+                                {/* In room */}
                                 {!room?.started && isHost && (
                                     <button className="btn" onClick={startGame}>
                                         Start spel
                                     </button>
                                 )}
+
                                 {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
                                 {room?.started && <span className="badge">Multiplayer actief</span>}
 
-                                <button className="btn" style={{ background: "#dc2626" }} onClick={leaveRoom}>
+                                <button className="btn warn" onClick={leaveRoom}>
                                     Leave
                                 </button>
 
@@ -562,11 +559,14 @@ export default function DierenspelApp() {
                             </>
                         )}
 
+                        {/* Offline melding wanneer nog niet gejoined */}
                         {!online && !isOnlineRoom && (
                             <span className="badge">Offline: maak verbinding om te spelen</span>
                         )}
                     </div>
                 </div>
+                {/* ───── EINDE: header blok ───── */}
+
 
                 {/* SPEELVELD */}
                 {isOnlineRoom && room?.started && (
