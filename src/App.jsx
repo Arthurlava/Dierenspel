@@ -7,7 +7,7 @@ import {
 } from "firebase/database";
 
 /* -------- Config -------- */
-const SITE_TITLE = "PimPamPof — Dierenspel";
+const SITE_TITLE = "Dierenspel";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDuYvtJbjj0wQbSwIBtyHuPeF71poPIBUg",
@@ -54,7 +54,13 @@ const GlobalStyle=()=>(
   .letterBig{display:grid;place-items:center;width:120px;height:120px;border-radius:28px;background:radial-gradient(circle at 30% 30%, var(--brand1), var(--brand2));color:#041507;font-size:56px;font-weight:900;border:1px solid rgba(0,0,0,.2);box-shadow:0 14px 40px rgba(34,197,94,.35);margin:8px auto 12px;}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:linear-gradient(90deg,var(--brand1),var(--brand2));color:#041507;padding:10px 14px;border-radius:999px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.35);z-index:10}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9998}
-  .dialog{width:min(92vw, 760px);background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.dialog{
+  width:min(92vw, 760px);
+  background:#0f172a;                 
+  border:1px solid #1f2937;   
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);}
   table{width:100%;border-collapse:collapse} th,td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.12);text-align:left}
   `}</style>
 );
