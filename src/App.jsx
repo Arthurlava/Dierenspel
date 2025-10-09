@@ -202,8 +202,8 @@ function useOnline() {
     return online;
 }
 
-// ==== beginletter: random medeklinker, geen X/Y/Z ====
-const EASY_CONSONANTS = ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W"];
+// ==== beginletter: random medeklinker, geen X/Y/Z/Q ====
+const EASY_CONSONANTS = ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T", "V", "W"];
 function randomEasyConsonant() {
     return EASY_CONSONANTS[Math.floor(Math.random() * EASY_CONSONANTS.length)];
 }
@@ -338,13 +338,13 @@ export default function DierenspelApp() {
             playersOrder: [playerId],
             solo,
             started: false,
-            lastLetter: "?",                 // ← bij aanmaken nog '?'
+            lastLetter: "?",                 // blijft '?' tot Start spel
             turn: playerId,
-            turnStartAt: null,               // geen timer vóór start
+            turnStartAt: null,
             cooldownEndAt: null,
             paused: false,
             pausedAt: null,
-            jail: {},                        // Jilla
+            jail: {},
             scores: {},
             stats: {},
             answers: [],
@@ -400,7 +400,7 @@ export default function DierenspelApp() {
         attachRoomListener(code);
     }
 
-    // ✅ Zet bij "Start spel" de eerste beginletter op een random makkelijke medeklinker
+    // eerste beginletter = random makkelijke medeklinker (zonder X/Y/Z/Q)
     async function startGame() {
         if (!room || !isHost) return;
         const startLetter =
@@ -410,10 +410,10 @@ export default function DierenspelApp() {
 
         await update(ref(db, `rooms/${roomCode}`), {
             started: true,
-            lastLetter: startLetter,                       // ← hier zetten we 'm
+            lastLetter: startLetter,
             turn: room.playersOrder?.[0] || room.hostId,
             phase: "answer",
-            turnStartAt: room.solo ? null : Date.now(),   // start nu pas
+            turnStartAt: room.solo ? null : Date.now(),
             cooldownEndAt: null
         });
         setTimeout(() => inputRef.current?.focus(), 0);
@@ -424,7 +424,6 @@ export default function DierenspelApp() {
             .filter((id) => data.players && data.players[id]);
         if (ids.length === 0) return null;
 
-        // sla spelers met jail > 0 over en decrement jail
         let idx = Math.max(0, ids.indexOf(data.turn));
         for (let i = 0; i < ids.length; i++) {
             idx = (idx + 1) % ids.length;
@@ -446,12 +445,11 @@ export default function DierenspelApp() {
         const w = (answer || "").trim();
         if (!w) return;
 
-        // ---- CLIENT: strikte beginletter ----
         const req = (room.lastLetter && room.lastLetter !== "?") ? room.lastLetter : null;
         const firstClient = firstAlphaLetter(w);
         if (req && firstClient !== req) {
             setApiState({ status: "error", msg: `Moet beginnen met ${req}` });
-            return; // weiger indienen
+            return;
         }
 
         const key = normalizeAnimalKey(w);
@@ -460,7 +458,6 @@ export default function DierenspelApp() {
             return;
         }
 
-        // Tijd (pauze-proof)
         const nowTs = Date.now();
         const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
         const startAt = room?.turnStartAt ?? effectiveNow;
@@ -483,13 +480,11 @@ export default function DierenspelApp() {
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
-            // ---- SERVER: strikte beginletter (anti-cheat) ----
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
-                if (first !== data.lastLetter) return data; // weiger
+                if (first !== data.lastLetter) return data;
             }
 
-            // turn herstellen indien nodig
             if (!data.players || !data.players[data.turn]) {
                 const idsAll = data.players ? Object.keys(data.players) : [];
                 if (idsAll.length === 0) return null;
@@ -498,7 +493,6 @@ export default function DierenspelApp() {
                 if (data.turn !== playerId) return data;
             }
 
-            // duplicate guard
             data.used ??= {};
             if (key && data.used[key]) return data;
 
@@ -534,7 +528,6 @@ export default function DierenspelApp() {
 
             data.lastLetter = letterToSet || "?";
 
-            // beurt doorschuiven (skip jail)
             const ids = (Array.isArray(data.playersOrder) ? data.playersOrder : Object.keys(data.players || {}))
                 .filter((id) => data.players && data.players[id]);
             if (ids.length > 0) {
@@ -837,7 +830,6 @@ export default function DierenspelApp() {
 
                     {isOnlineRoom && room?.started ? (
                         <>
-                            {/* Jilla status voor mij */}
                             {(room?.jail?.[playerId] || 0) > 0 && (
                                 <div className="center" style={{ marginBottom: 8 }}>
                                     <span className="badge">🔒 Jilla actief — je wordt {room.jail[playerId]} beurt(en) overgeslagen</span>
