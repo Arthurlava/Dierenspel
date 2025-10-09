@@ -824,6 +824,11 @@ export default function DierenspelApp() {
                                     onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
                                 />
                                 <Button variant="alt" onClick={joinRoom} disabled={!online}>Join</Button>
+
+                                {/* ⬇️ Alleen op het startscherm tonen */}
+                                <Button variant="alt" href="https://pimpampof.vercel.app">
+                                    pimpampof.vercel.app ↗
+                                </Button>
                             </>
                         ) : (
                             <>
@@ -833,7 +838,6 @@ export default function DierenspelApp() {
                                 {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
                                 {room?.started && <span className="badge">Multiplayer actief</span>}
 
-                                {/* Pauze / Hervat */}
                                 {room?.started && !room?.paused && (
                                     <Button variant="alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</Button>
                                 )}
@@ -842,17 +846,14 @@ export default function DierenspelApp() {
                                 )}
                                 <Button variant="warn" onClick={onLeaveClick}>Leave</Button>
                                 {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
-                                    <Button variant="alt" href="https://pimpampof.vercel.app">
-                                        pimpampof.vercel.app ↗
-                                    </Button>
-
-                                </>
+                            </>
                         )}
 
                         {!online && !isOnlineRoom && (
                             <span className="badge">Offline: maak verbinding om te spelen</span>
                         )}
                     </div>
+
                 </div>
 
                 {/* Speelveld */}
