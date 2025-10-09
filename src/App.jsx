@@ -429,16 +429,16 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
-        if (room.paused) return;
+        if (room.paused) return; // ✅ correcte guard in de UI-scope
 
         const w = (answer || "").trim();
         if (!w) return;
 
-        // --- CLIENT: strikte beginlettercontrole ---
+        // ---- Client: strikte beginletter ----
         const req = (room.lastLetter && room.lastLetter !== "?") ? room.lastLetter : null;
         const firstClient = firstAlphaLetter(w);
         if (req && firstClient !== req) {
-            // Korte duidelijke feedback
+            // duidelijke feedback
             setApiState({ status: "error", msg: `Moet beginnen met ${req}` });
             return;
         }
@@ -449,7 +449,7 @@ export default function DierenspelApp() {
             return;
         }
 
-        // Tijd (bevroren wanneer gepauzeerd)
+        // tijd berekenen (pauze-proof)
         const nowTs = Date.now();
         const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
         const startAt = room?.turnStartAt ?? effectiveNow;
@@ -466,8 +466,9 @@ export default function DierenspelApp() {
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (!data.started) return data;
-            if (data.paused) return data;
+            if (data.paused) return data; // ✅ server guard
 
+            // turn herstellen indien nodig
             if (!data.players || !data.players[data.turn]) {
                 const ids = data.players ? Object.keys(data.players) : [];
                 if (ids.length === 0) return null;
@@ -477,13 +478,13 @@ export default function DierenspelApp() {
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
-            // --- SERVER: strikte beginlettercontrole (anti-cheat) ---
+            // ---- Server: strikte beginletter (anti-cheat) ----
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
                 if (first !== data.lastLetter) return data;
             }
 
-            // Duplicate guard
+            // duplicate guard
             data.used ??= {};
             if (key && data.used[key]) return data;
 
@@ -514,7 +515,6 @@ export default function DierenspelApp() {
                 double: !!isDouble,
                 ts: Date.now()
             });
-
             if (key) data.used[key] = true;
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
@@ -559,7 +559,7 @@ export default function DierenspelApp() {
         setApiState({ status: "idle", msg: "" });
         setTimeout(() => inputRef.current?.focus(), 0);
     }
-  
+
 
 
     async function useJilla() {
