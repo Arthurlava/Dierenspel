@@ -711,9 +711,8 @@ export default function DierenspelApp() {
         const q = (answer || "").trim();
         if (!q) { setApiState({ status: "idle", msg: "" }); return; }
 
-        // Client-guard: minimaal 2 tekens na simpele normalisatie
-        let cleaned = q.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-        cleaned = cleaned.replace(/[^a-z0-9]/g, "");
+        // Client-guard: minimaal 2 tekens na normalisatie
+        let cleaned = q.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^a-z0-9]/g, "");
         if (cleaned.length < 2) {
             setApiState({ status: "notfound", msg: "Voer minimaal 2 tekens in" });
             return;
@@ -735,14 +734,15 @@ export default function DierenspelApp() {
             const data = await resp.json();
             if (data?.ok && data?.found) {
                 const source = data.source || "api";
-                setApiState({ status: "ok", msg: `✅ Dier gevonden (${source})` });
+                setApiState({ status: "ok", msg: `✅ Dier gevonden (exacte match, ${source})` });
             } else {
-                setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden in database" });
+                setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden (exacte naam vereist)" });
             }
         } catch (err) {
             setApiState({ status: "error", msg: `Netwerkfout: ${String(err)}` });
         }
     }
+
 
 
     /* ---------- cooldown tick ---------- */
