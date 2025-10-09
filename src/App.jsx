@@ -109,7 +109,6 @@ const GlobalStyle = () => (
     100% { transform: scale(.98); opacity: 0 }
   }
   .answer-flash { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index: 9996; }
-  /* Groen */
   .answer-bubble {
     padding: 14px 18px; border-radius: 999px; font-weight:800; font-size: 20px;
     background: radial-gradient(circle at 30% 30%, rgba(34,197,94,.96), rgba(16,185,129,.92));
@@ -186,7 +185,7 @@ function firstAlphaLetter(word) {
     return s[0].toUpperCase();
 }
 function isDoublePof(requiredLetter, word) {
-    const s = (word || "").toUpperCase().replace(/[^A-ZÁÉÍÓÚÄËÏÖÜÇÑ]/g, "");
+    const s = (word || "").toUpperCase().normalize("NFKD").replace(/[^\p{Letter}]/gu, "");
     const first = s[0] || "";
     return requiredLetter && requiredLetter !== "?" && first === requiredLetter;
 }
@@ -209,8 +208,6 @@ function useOnline() {
 function Section({ title, children }) {
     return (<div style={styles.section}>{title && <h2 style={styles.sectionTitle}>{title}</h2>}{children}</div>);
 }
-
-// --- Reusable groene Button ---
 function Button({ children, variant, className = "", ...props }) {
     const base = variant === "alt" ? "btn alt" : variant === "warn" ? "btn warn" : "btn";
     return (
@@ -465,7 +462,7 @@ export default function DierenspelApp() {
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (!data.started) return data;
-            if (data.paused) return data;
+            if (data.paused) return data; // niet tijdens pauze
             if (!data.players || !data.players[data.turn]) {
                 const ids = data.players ? Object.keys(data.players) : [];
                 if (ids.length === 0) return null;
@@ -612,7 +609,7 @@ export default function DierenspelApp() {
         await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
             if (!d || d.paused) return d;
             d.paused = true;
-            d.pausedAt = Date.now(); // we gebruiken deze om UI-tijd te bevriezen
+            d.pausedAt = Date.now(); // UI en elapsed freeze
             return d;
         });
     }
