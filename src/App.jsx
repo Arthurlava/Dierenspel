@@ -429,15 +429,18 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
-        if (room.paused) return; // correct: blokkeer client-call tijdens pauze
+        if (room.paused) return;
 
         const w = (answer || "").trim();
         if (!w) return;
 
-        // Client-side beginletter check (zelfde regel als UI-disable)
-        if (room.lastLetter && room.lastLetter !== "?") {
-            const first = firstAlphaLetter(w);
-            if (first !== room.lastLetter) return;
+        // --- CLIENT: strikte beginlettercontrole ---
+        const req = (room.lastLetter && room.lastLetter !== "?") ? room.lastLetter : null;
+        const firstClient = firstAlphaLetter(w);
+        if (req && firstClient !== req) {
+            // Korte duidelijke feedback
+            setApiState({ status: "error", msg: `Moet beginnen met ${req}` });
+            return;
         }
 
         const key = normalizeAnimalKey(w);
@@ -446,8 +449,7 @@ export default function DierenspelApp() {
             return;
         }
 
-        // Tijd bevriezen wanneer gepauzeerd (voor stats). room.paused is hier al false,
-        // maar laat de logica intact voor consistentie.
+        // Tijd (bevroren wanneer gepauzeerd)
         const nowTs = Date.now();
         const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
         const startAt = room?.turnStartAt ?? effectiveNow;
@@ -464,9 +466,8 @@ export default function DierenspelApp() {
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (!data.started) return data;
-            if (data.paused) return data; // server guard
+            if (data.paused) return data;
 
-            // turn fix
             if (!data.players || !data.players[data.turn]) {
                 const ids = data.players ? Object.keys(data.players) : [];
                 if (ids.length === 0) return null;
@@ -476,13 +477,13 @@ export default function DierenspelApp() {
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
-            // server-side beginletter check (anti-misbruik)
+            // --- SERVER: strikte beginlettercontrole (anti-cheat) ---
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
                 if (first !== data.lastLetter) return data;
             }
 
-            // duplicate guard server-side
+            // Duplicate guard
             data.used ??= {};
             if (key && data.used[key]) return data;
 
@@ -502,6 +503,7 @@ export default function DierenspelApp() {
             const id = (typeof crypto !== "undefined" && crypto.randomUUID)
                 ? crypto.randomUUID()
                 : `${Date.now()}_${Math.random()}`;
+
             data.answers.push({
                 id,
                 pid: playerId,
@@ -512,11 +514,13 @@ export default function DierenspelApp() {
                 double: !!isDouble,
                 ts: Date.now()
             });
+
             if (key) data.used[key] = true;
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
             data.lastLetter = letterToSet || "?";
-            // beurt doorzetten (sla “jail > 0” spelers over)
+
+            // beurt doorschuiven (skip jail)
             const ids = (Array.isArray(data.playersOrder) ? data.playersOrder : Object.keys(data.players || {}))
                 .filter((id) => data.players && data.players[id]);
             if (ids.length > 0) {
@@ -547,12 +551,15 @@ export default function DierenspelApp() {
         });
 
         if (isDouble) triggerPof(`Dubble pof! +${DOUBLE_POF_BONUS}`);
-        if (isMP && totalGain > 0)
+        if (isMP && totalGain > 0) {
             triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
+        }
 
         setAnswer("");
+        setApiState({ status: "idle", msg: "" });
         setTimeout(() => inputRef.current?.focus(), 0);
     }
+  
 
 
     async function useJilla() {
@@ -919,22 +926,28 @@ export default function DierenspelApp() {
 
                 {/* GESCHIEDENIS */}
                 {isOnlineRoom && room?.answers && room.answers.length > 0 && (
-                    <Section title="Antwoorden">
+                    <Section title="Antwoorden (laatste eerst)">
                         <ul style={styles.list}>
-                            {[...room.answers].slice().reverse().map((a) => (
-                                <li key={a.id} style={styles.li}>
-                                    <div style={styles.liText}>
-                                        <b>{a.name}</b> → <b>{a.answer}</b>
-                                        {" "}<span className="badge">⏱ {a.timeMs}ms</span>
-                                        {" "}{!room.solo && <span className="badge">🏅 {a.points >= 0 ? `+${a.points}` : a.points}</span>}
-                                        {" "}{a.double && <span className="badge">💥 Dubble pof</span>}
-                                    </div>
-                                    <div className="muted">{new Date(a.ts).toLocaleTimeString()}</div>
-                                </li>
-                            ))}
+                            {[...room.answers].slice().reverse().map((a) => {
+                                const secs = (a.timeMs / 1000).toFixed(2);
+                                const pts = room.solo ? 0 : (a.points || 0);
+                                const ptsLabel = pts >= 0 ? `+${pts}` : `${pts}`;
+                                return (
+                                    <li key={a.id} style={styles.li}>
+                                        <div style={styles.liText}>
+                                            <b>{a.name}</b> → <b>{a.answer}</b>
+                                            {" "}<span className="badge">⏱ {secs}s</span>
+                                            {" "}{!room.solo && <span className="badge">🏅 {ptsLabel}</span>}
+                                            {" "}{a.double && <span className="badge">💥 Dubble pof</span>}
+                                        </div>
+                                        <div className="muted">{new Date(a.ts).toLocaleTimeString()}</div>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     </Section>
                 )}
+
 
                 <footer style={styles.foot}>
                     {isOnlineRoom
