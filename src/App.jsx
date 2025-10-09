@@ -429,6 +429,7 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
+        if (data.paused) return data; // niet verwerken tijdens pauze
 
         const w = (answer || "").trim();
         if (!w) return;
@@ -545,13 +546,13 @@ export default function DierenspelApp() {
             if (!d.solo) {
                 d.scores ??= {};
                 d.stats ??= {};
-                d.scores[playerId] = (d.scores[playerId] || 0) - JILLA_PENALTY;
+                d.scores[playerId] = (d.scores[playerId] || 0) - 25;
                 const s = d.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
                 s.jillaCount = (s.jillaCount || 0) + 1;
                 d.stats[playerId] = s;
 
                 d.phase = "cooldown";
-                d.cooldownEndAt = Date.now() + COOLDOWN_MS;
+                d.cooldownEndAt = Date.now() + 5000;
                 d.turnStartAt = null;
             } else {
                 d.phase = "answer";
@@ -562,8 +563,9 @@ export default function DierenspelApp() {
             advanceTurn(d);
             return d;
         });
-        triggerScoreToast(`-${JILLA_PENALTY} punten (Jilla)`, "minus");
+        triggerScoreToast("-25 punten (Jilla)", "minus");
     }
+
 
     async function leaveRoom() {
         if (!roomCode) { setRoom(null); setRoomCode(""); setIsHost(false); return; }
@@ -603,16 +605,16 @@ export default function DierenspelApp() {
         return arr;
     }
 
-    // Pauze/hervat (freeze én doorlooptijden corrigeren)
     async function pauseGame() {
         if (!roomCode || !room) return;
         await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
             if (!d || d.paused) return d;
             d.paused = true;
-            d.pausedAt = Date.now(); // UI en elapsed freeze
+            d.pausedAt = Date.now();
             return d;
         });
     }
+
     async function resumeGame() {
         if (!roomCode || !room) return;
         await runTransaction(ref(db, `rooms/${roomCode}`), (d) => {
@@ -620,7 +622,8 @@ export default function DierenspelApp() {
             const delta = Date.now() - (d.pausedAt || Date.now());
             if (d.cooldownEndAt) d.cooldownEndAt += delta;
             if (d.turnStartAt) d.turnStartAt += delta;
-            d.paused = false; d.pausedAt = null;
+            d.paused = false;
+            d.pausedAt = null;
             return d;
         });
     }
@@ -665,9 +668,11 @@ export default function DierenspelApp() {
     const answerElapsedMs = (!room?.solo && room?.started && room?.phase === "answer" && room?.turnStartAt)
         ? Math.max(0, (room?.paused ? (room.pausedAt || now) : now) - room.turnStartAt)
         : 0;
+
     const potentialPoints = (!room?.solo && room?.started && !room?.paused)
         ? calcPoints(answerElapsedMs)
         : 0;
+
 
     // beginletter validatie voor UI (disable knop + enter)
     const beginsOk = !requiredLetter || firstAlphaLetter(answer) === requiredLetter;
