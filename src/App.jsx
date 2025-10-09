@@ -12,7 +12,7 @@ import {
 const SITE_TITLE = "Dierenspel";
 
 const MAX_TIME_MS = 120000;
-the MAX_POINTS = 200;
+const MAX_POINTS = 200;
 const DOUBLE_POF_BONUS = 100;
 const JILLA_PENALTY = 25;
 const COOLDOWN_MS = 5000;
@@ -338,13 +338,13 @@ export default function DierenspelApp() {
             playersOrder: [playerId],
             solo,
             started: false,
-            lastLetter: randomEasyConsonant(),   // 🔹 eerste beginletter
+            lastLetter: "?",                 // ← bij aanmaken nog '?'
             turn: playerId,
-            turnStartAt: null,                   // geen timer vóór start
+            turnStartAt: null,               // geen timer vóór start
             cooldownEndAt: null,
             paused: false,
             pausedAt: null,
-            jail: {},                            // Jilla
+            jail: {},                        // Jilla
             scores: {},
             stats: {},
             answers: [],
@@ -382,7 +382,7 @@ export default function DierenspelApp() {
             data.answers ??= [];
             data.used ??= {};
             data.jail ??= {};
-            data.lastLetter ??= randomEasyConsonant(); // als room ooit zonder letter zou bestaan
+            data.lastLetter ??= "?";
             data.paused ??= false;
             data.pausedAt ??= null;
 
@@ -400,14 +400,20 @@ export default function DierenspelApp() {
         attachRoomListener(code);
     }
 
+    // ✅ Zet bij "Start spel" de eerste beginletter op een random makkelijke medeklinker
     async function startGame() {
         if (!room || !isHost) return;
+        const startLetter =
+            room.lastLetter && room.lastLetter !== "?"
+                ? room.lastLetter
+                : randomEasyConsonant();
+
         await update(ref(db, `rooms/${roomCode}`), {
             started: true,
-            // lastLetter NIET overschrijven; we houden de random startletter
+            lastLetter: startLetter,                       // ← hier zetten we 'm
             turn: room.playersOrder?.[0] || room.hostId,
             phase: "answer",
-            turnStartAt: room.solo ? null : Date.now(),  // start nu pas
+            turnStartAt: room.solo ? null : Date.now(),   // start nu pas
             cooldownEndAt: null
         });
         setTimeout(() => inputRef.current?.focus(), 0);
@@ -435,7 +441,7 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
-        if (room.paused) return; // correcte guard
+        if (room.paused) return;
 
         const w = (answer || "").trim();
         if (!w) return;
@@ -468,20 +474,19 @@ export default function DierenspelApp() {
         const letterToSet = lastAlphaLetter(w);
         const r = ref(db, `rooms/${roomCode}`);
 
-        // We willen weten of de server het echt geaccepteerd heeft.
         let accepted = false;
 
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (!data.started) return data;
-            if (data.paused) return data;          // server guard
+            if (data.paused) return data;
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
             // ---- SERVER: strikte beginletter (anti-cheat) ----
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
-                if (first !== data.lastLetter) return data; // weiger op server
+                if (first !== data.lastLetter) return data; // weiger
             }
 
             // turn herstellen indien nodig
