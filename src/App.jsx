@@ -429,12 +429,12 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
-        if (data.paused) return data; // niet verwerken tijdens pauze
+        if (room.paused) return; // correct: blokkeer client-call tijdens pauze
 
         const w = (answer || "").trim();
         if (!w) return;
 
-        // Vereiste beginletter afdwingen
+        // Client-side beginletter check (zelfde regel als UI-disable)
         if (room.lastLetter && room.lastLetter !== "?") {
             const first = firstAlphaLetter(w);
             if (first !== room.lastLetter) return;
@@ -446,7 +446,8 @@ export default function DierenspelApp() {
             return;
         }
 
-        // bevroren tijd wanneer gepauzeerd (ook voor stats)
+        // Tijd bevriezen wanneer gepauzeerd (voor stats). room.paused is hier al false,
+        // maar laat de logica intact voor consistentie.
         const nowTs = Date.now();
         const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
         const startAt = room?.turnStartAt ?? effectiveNow;
@@ -463,7 +464,9 @@ export default function DierenspelApp() {
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (!data.started) return data;
-            if (data.paused) return data; // niet tijdens pauze
+            if (data.paused) return data; // server guard
+
+            // turn fix
             if (!data.players || !data.players[data.turn]) {
                 const ids = data.players ? Object.keys(data.players) : [];
                 if (ids.length === 0) return null;
@@ -473,10 +476,10 @@ export default function DierenspelApp() {
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
-            // beginletter check server-side ook
+            // server-side beginletter check (anti-misbruik)
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
-                if (first !== data.lastLetter) return data; // weigeren
+                if (first !== data.lastLetter) return data;
             }
 
             // duplicate guard server-side
@@ -485,9 +488,9 @@ export default function DierenspelApp() {
 
             if (!data.solo) {
                 data.scores ??= {};
+                data.stats ??= {};
                 data.scores[playerId] = (data.scores[playerId] || 0) + totalGain;
 
-                data.stats ??= {};
                 const s = data.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
                 s.totalTimeMs += elapsed;
                 s.answeredCount += 1;
@@ -496,7 +499,9 @@ export default function DierenspelApp() {
             }
 
             data.answers ??= [];
-            const id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`;
+            const id = (typeof crypto !== "undefined" && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}_${Math.random()}`;
             data.answers.push({
                 id,
                 pid: playerId,
@@ -511,7 +516,22 @@ export default function DierenspelApp() {
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
             data.lastLetter = letterToSet || "?";
-            advanceTurn(data);
+            // beurt doorzetten (sla “jail > 0” spelers over)
+            const ids = (Array.isArray(data.playersOrder) ? data.playersOrder : Object.keys(data.players || {}))
+                .filter((id) => data.players && data.players[id]);
+            if (ids.length > 0) {
+                let idx = Math.max(0, ids.indexOf(data.turn));
+                for (let i = 0; i < ids.length; i++) {
+                    idx = (idx + 1) % ids.length;
+                    const cand = ids[idx];
+                    data.jail ??= {};
+                    const j = data.jail[cand] || 0;
+                    if (j > 0) { data.jail[cand] = j - 1; continue; }
+                    data.turn = cand;
+                    break;
+                }
+                if (!ids.includes(data.turn)) data.turn = ids[0];
+            }
 
             if (!data.solo) {
                 data.phase = "cooldown";
@@ -522,15 +542,18 @@ export default function DierenspelApp() {
                 data.turnStartAt = null;
                 data.cooldownEndAt = null;
             }
+
             return data;
         });
 
         if (isDouble) triggerPof(`Dubble pof! +${DOUBLE_POF_BONUS}`);
-        if (isMP && totalGain > 0) triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
+        if (isMP && totalGain > 0)
+            triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
 
         setAnswer("");
         setTimeout(() => inputRef.current?.focus(), 0);
     }
+
 
     async function useJilla() {
         if (!room || !room.started) return;
@@ -639,10 +662,38 @@ export default function DierenspelApp() {
 
     async function checkAnimalViaAPI() {
         const q = (answer || "").trim();
-        if (!q) return setApiState({ status: "idle", msg: "" });
-        setApiState({ status: "checking", msg: "Bezig met controleren…" });
-        setTimeout(() => setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden in database" }), 400);
+        if (!q) {
+            setApiState({ status: "idle", msg: "" });
+            return;
+        }
+
+        try {
+            setApiState({ status: "checking", msg: "Bezig met controleren…" });
+
+            // Gebruik een relatieve URL; werkt lokaal (Vite/CRA) en op Vercel:
+            const resp = await fetch(`/api/check-animal?name=${encodeURIComponent(q)}`, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (!resp.ok) {
+                const text = await resp.text().catch(() => "");
+                setApiState({ status: "error", msg: `API error (${resp.status}) ${text}` });
+                return;
+            }
+
+            const data = await resp.json();
+            if (data?.ok && data?.found) {
+                const source = data.source || "api";
+                setApiState({ status: "ok", msg: `✅ Dier gevonden (${source})` });
+            } else {
+                setApiState({ status: "notfound", msg: "ℹ️ Niet gevonden in database" });
+            }
+        } catch (err) {
+            setApiState({ status: "error", msg: `Netwerkfout: ${String(err)}` });
+        }
     }
+
 
     /* ---------- cooldown tick ---------- */
     const inCooldown = room?.phase === "cooldown" && !room?.solo && room?.started;
