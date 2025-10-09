@@ -429,27 +429,26 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
-        if (room.paused) return; // ✅ correcte guard in de UI-scope
+        if (room.paused) return; // ✅ correcte guard (NIET 'data.paused' hier)
 
         const w = (answer || "").trim();
         if (!w) return;
 
-        // ---- Client: strikte beginletter ----
+        // ---- CLIENT: strikte beginletter ----
         const req = (room.lastLetter && room.lastLetter !== "?") ? room.lastLetter : null;
         const firstClient = firstAlphaLetter(w);
         if (req && firstClient !== req) {
-            // duidelijke feedback
             setApiState({ status: "error", msg: `Moet beginnen met ${req}` });
-            return;
+            return; // ❌ weiger indienen
         }
 
         const key = normalizeAnimalKey(w);
         if (key && usedKeysSet.has(key)) {
-            alert("Dit dier is al geweest in deze room.");
+            setApiState({ status: "error", msg: "Dit dier is al gegeven in deze room" });
             return;
         }
 
-        // tijd berekenen (pauze-proof)
+        // Tijd (pauze-proof)
         const nowTs = Date.now();
         const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
         const startAt = room?.turnStartAt ?? effectiveNow;
@@ -463,25 +462,29 @@ export default function DierenspelApp() {
         const letterToSet = lastAlphaLetter(w);
         const r = ref(db, `rooms/${roomCode}`);
 
+        // We willen weten of de server het echt geaccepteerd heeft.
+        let accepted = false;
+
         await runTransaction(r, (data) => {
             if (!data) return data;
             if (!data.started) return data;
-            if (data.paused) return data; // ✅ server guard
-
-            // turn herstellen indien nodig
-            if (!data.players || !data.players[data.turn]) {
-                const ids = data.players ? Object.keys(data.players) : [];
-                if (ids.length === 0) return null;
-                data.playersOrder = (Array.isArray(data.playersOrder) ? data.playersOrder : ids).filter(id => ids.includes(id));
-                data.turn = data.playersOrder[0] || ids[0];
-            }
+            if (data.paused) return data;          // server guard
             if (data.turn !== playerId) return data;
             if (data.phase !== "answer") return data;
 
-            // ---- Server: strikte beginletter (anti-cheat) ----
+            // ---- SERVER: strikte beginletter (anti-cheat) ----
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
-                if (first !== data.lastLetter) return data;
+                if (first !== data.lastLetter) return data; // ❌ weiger op server
+            }
+
+            // turn herstellen indien nodig
+            if (!data.players || !data.players[data.turn]) {
+                const idsAll = data.players ? Object.keys(data.players) : [];
+                if (idsAll.length === 0) return null;
+                data.playersOrder = (Array.isArray(data.playersOrder) ? data.playersOrder : idsAll).filter(id => idsAll.includes(id));
+                data.turn = data.playersOrder[0] || idsAll[0];
+                if (data.turn !== playerId) return data;
             }
 
             // duplicate guard
@@ -492,7 +495,6 @@ export default function DierenspelApp() {
                 data.scores ??= {};
                 data.stats ??= {};
                 data.scores[playerId] = (data.scores[playerId] || 0) + totalGain;
-
                 const s = data.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
                 s.totalTimeMs += elapsed;
                 s.answeredCount += 1;
@@ -515,6 +517,7 @@ export default function DierenspelApp() {
                 double: !!isDouble,
                 ts: Date.now()
             });
+
             if (key) data.used[key] = true;
             if (data.answers.length > 200) data.answers = data.answers.slice(-200);
 
@@ -547,9 +550,17 @@ export default function DierenspelApp() {
                 data.cooldownEndAt = null;
             }
 
+            accepted = true; // ✅ alleen hier zetten we 'm op true
             return data;
         });
 
+        if (!accepted) {
+            // Niets weggeschreven: geef directe feedback en behoud input
+            setApiState({ status: "error", msg: `Moet beginnen met ${req || "?"}` });
+            return;
+        }
+
+        // Alleen bij echte accept
         if (isDouble) triggerPof(`Dubble pof! +${DOUBLE_POF_BONUS}`);
         if (isMP && totalGain > 0) {
             triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
@@ -559,6 +570,7 @@ export default function DierenspelApp() {
         setApiState({ status: "idle", msg: "" });
         setTimeout(() => inputRef.current?.focus(), 0);
     }
+
 
 
 
