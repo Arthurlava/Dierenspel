@@ -184,14 +184,12 @@ function firstAlphaLetter(word) {
     if (!s) return "";
     return s[0].toUpperCase();
 }
-
-// ✅ FIX: double pof alleen als woord BEGINT én EINDIGT met de vereiste letter
+// Double pof alleen als woord begint én eindigt met de vereiste letter
 function isDoublePof(requiredLetter, word) {
     const first = firstAlphaLetter(word);
     const last = lastAlphaLetter(word);
     return requiredLetter && requiredLetter !== "?" && first === requiredLetter && last === requiredLetter;
 }
-
 function normalizeAnimalKey(w) {
     return (w || "").toLowerCase().normalize("NFKD").replace(/[^\p{Letter}0-9]/gu, "");
 }
@@ -204,8 +202,7 @@ function useOnline() {
     }, []);
     return online;
 }
-
-// ==== beginletter: random medeklinker, geen X/Y/Z/Q ====
+// Beginletter: makkelijke medeklinker (zonder X/Y/Z/Q)
 const EASY_CONSONANTS = ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T", "V", "W"];
 function randomEasyConsonant() {
     return EASY_CONSONANTS[Math.floor(Math.random() * EASY_CONSONANTS.length)];
@@ -341,7 +338,7 @@ export default function DierenspelApp() {
             playersOrder: [playerId],
             solo,
             started: false,
-            lastLetter: "?",                 // blijft '?' tot Start spel
+            lastLetter: "?", // tot Start spel
             turn: playerId,
             turnStartAt: null,
             cooldownEndAt: null,
@@ -467,7 +464,7 @@ export default function DierenspelApp() {
         const elapsed = Math.max(0, effectiveNow - startAt);
 
         const basePoints = isMP ? calcPoints(elapsed) : 0;
-        const isDouble = isDoublePof(room?.lastLetter || "?", w); // ✅ nu alleen true bij begin+eind = required
+        const isDouble = isDoublePof(room?.lastLetter || "?", w);
         const bonus = isMP && isDouble ? DOUBLE_POF_BONUS : 0;
         const totalGain = isMP ? (basePoints + bonus) : 0;
 
@@ -576,8 +573,16 @@ export default function DierenspelApp() {
         setTimeout(() => inputRef.current?.focus(), 0);
     }
 
+    // ✅ Voeg Jilla-actie toe aan history (met tijd) + punten -25
     async function useJilla() {
         if (!room || !room.started) return;
+
+        // tijdsmeting (pauze-proof)
+        const nowTs = Date.now();
+        const effectiveNow = room.paused ? (room.pausedAt || nowTs) : nowTs;
+        const startAt = room?.turnStartAt ?? effectiveNow;
+        const elapsed = Math.max(0, effectiveNow - startAt);
+
         const r = ref(db, `rooms/${roomCode}`);
         await runTransaction(r, (d) => {
             if (!d || d.paused) return d;
@@ -594,7 +599,28 @@ export default function DierenspelApp() {
                 const s = d.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
                 s.jillaCount = (s.jillaCount || 0) + 1;
                 d.stats[playerId] = s;
+            }
 
+            // 🔽 History entry voor Jilla
+            d.answers ??= [];
+            const id = (typeof crypto !== "undefined" && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}_${Math.random()}`;
+            d.answers.push({
+                id,
+                pid: playerId,
+                name: (d.participants?.[playerId]?.name) || (d.players?.[playerId]?.name) || "Speler",
+                answer: "Jilla",
+                type: "jilla",
+                timeMs: elapsed,
+                points: d.solo ? 0 : -JILLA_PENALTY,
+                double: false,
+                ts: Date.now()
+            });
+            if (d.answers.length > 200) d.answers = d.answers.slice(-200);
+
+            // cooldown + beurt door
+            if (!d.solo) {
                 d.phase = "cooldown";
                 d.cooldownEndAt = Date.now() + COOLDOWN_MS;
                 d.turnStartAt = null;
@@ -607,6 +633,7 @@ export default function DierenspelApp() {
             advanceTurn(d);
             return d;
         });
+
         triggerScoreToast(`-${JILLA_PENALTY} punten (Jilla)`, "minus");
     }
 
@@ -941,13 +968,14 @@ export default function DierenspelApp() {
                                 const secs = (a.timeMs / 1000).toFixed(2);
                                 const pts = room.solo ? 0 : (a.points || 0);
                                 const ptsLabel = pts >= 0 ? `+${pts}` : `${pts}`;
+                                const isJilla = a.type === "jilla";
                                 return (
                                     <li key={a.id} style={styles.li}>
                                         <div style={styles.liText}>
-                                            <b>{a.name}</b> → <b>{a.answer}</b>
+                                            <b>{a.name}</b> → {isJilla ? <span className="badge">Jilla</span> : <b>{a.answer}</b>}
                                             {" "}<span className="badge">⏱ {secs}s</span>
-                                            {" "}{!room.solo && <span className="badge">🏅 {ptsLabel}</span>}
-                                            {" "}{a.double && <span className="badge">💥 Dubble pof</span>}
+                                            {" "}{!room.solo && <span className={`badge`}>🏅 {ptsLabel}</span>}
+                                            {" "}{!isJilla && a.double && <span className="badge">💥 Dubble pof</span>}
                                         </div>
                                         <div className="muted">{new Date(a.ts).toLocaleTimeString()}</div>
                                     </li>
