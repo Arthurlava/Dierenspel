@@ -12,7 +12,7 @@ import {
 const SITE_TITLE = "Dierenspel";
 
 const MAX_TIME_MS = 120000;
-const MAX_POINTS = 200;
+the MAX_POINTS = 200;
 const DOUBLE_POF_BONUS = 100;
 const JILLA_PENALTY = 25;
 const COOLDOWN_MS = 5000;
@@ -202,6 +202,12 @@ function useOnline() {
     return online;
 }
 
+// ==== beginletter: random medeklinker, geen X/Y/Z ====
+const EASY_CONSONANTS = ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W"];
+function randomEasyConsonant() {
+    return EASY_CONSONANTS[Math.floor(Math.random() * EASY_CONSONANTS.length)];
+}
+
 /* =========================
    SMALL UI
 ========================= */
@@ -332,13 +338,13 @@ export default function DierenspelApp() {
             playersOrder: [playerId],
             solo,
             started: false,
-            lastLetter: "?",
+            lastLetter: randomEasyConsonant(),   // 🔹 eerste beginletter
             turn: playerId,
-            turnStartAt: null,          // geen timer vóór start
+            turnStartAt: null,                   // geen timer vóór start
             cooldownEndAt: null,
             paused: false,
             pausedAt: null,
-            jail: {},                   // Jilla
+            jail: {},                            // Jilla
             scores: {},
             stats: {},
             answers: [],
@@ -376,7 +382,7 @@ export default function DierenspelApp() {
             data.answers ??= [];
             data.used ??= {};
             data.jail ??= {};
-            data.lastLetter ??= "?";
+            data.lastLetter ??= randomEasyConsonant(); // als room ooit zonder letter zou bestaan
             data.paused ??= false;
             data.pausedAt ??= null;
 
@@ -398,7 +404,7 @@ export default function DierenspelApp() {
         if (!room || !isHost) return;
         await update(ref(db, `rooms/${roomCode}`), {
             started: true,
-            lastLetter: "?",
+            // lastLetter NIET overschrijven; we houden de random startletter
             turn: room.playersOrder?.[0] || room.hostId,
             phase: "answer",
             turnStartAt: room.solo ? null : Date.now(),  // start nu pas
@@ -429,7 +435,7 @@ export default function DierenspelApp() {
 
     async function submitAnswerOnline() {
         if (!room || !room.started) return;
-        if (room.paused) return; // ✅ correcte guard (NIET 'data.paused' hier)
+        if (room.paused) return; // correcte guard
 
         const w = (answer || "").trim();
         if (!w) return;
@@ -439,7 +445,7 @@ export default function DierenspelApp() {
         const firstClient = firstAlphaLetter(w);
         if (req && firstClient !== req) {
             setApiState({ status: "error", msg: `Moet beginnen met ${req}` });
-            return; // ❌ weiger indienen
+            return; // weiger indienen
         }
 
         const key = normalizeAnimalKey(w);
@@ -475,7 +481,7 @@ export default function DierenspelApp() {
             // ---- SERVER: strikte beginletter (anti-cheat) ----
             if (data.lastLetter && data.lastLetter !== "?") {
                 const first = firstAlphaLetter(w);
-                if (first !== data.lastLetter) return data; // ❌ weiger op server
+                if (first !== data.lastLetter) return data; // weiger op server
             }
 
             // turn herstellen indien nodig
@@ -550,17 +556,15 @@ export default function DierenspelApp() {
                 data.cooldownEndAt = null;
             }
 
-            accepted = true; // ✅ alleen hier zetten we 'm op true
+            accepted = true;
             return data;
         });
 
         if (!accepted) {
-            // Niets weggeschreven: geef directe feedback en behoud input
             setApiState({ status: "error", msg: `Moet beginnen met ${req || "?"}` });
             return;
         }
 
-        // Alleen bij echte accept
         if (isDouble) triggerPof(`Dubble pof! +${DOUBLE_POF_BONUS}`);
         if (isMP && totalGain > 0) {
             triggerScoreToast(`+${totalGain} punten${isDouble ? ` (incl. +${DOUBLE_POF_BONUS} bonus)` : ""}`, "plus");
@@ -570,9 +574,6 @@ export default function DierenspelApp() {
         setApiState({ status: "idle", msg: "" });
         setTimeout(() => inputRef.current?.focus(), 0);
     }
-
-
-
 
     async function useJilla() {
         if (!room || !room.started) return;
@@ -588,13 +589,13 @@ export default function DierenspelApp() {
             if (!d.solo) {
                 d.scores ??= {};
                 d.stats ??= {};
-                d.scores[playerId] = (d.scores[playerId] || 0) - 25;
+                d.scores[playerId] = (d.scores[playerId] || 0) - JILLA_PENALTY;
                 const s = d.stats[playerId] || { totalTimeMs: 0, answeredCount: 0, jillaCount: 0, doubleCount: 0 };
                 s.jillaCount = (s.jillaCount || 0) + 1;
                 d.stats[playerId] = s;
 
                 d.phase = "cooldown";
-                d.cooldownEndAt = Date.now() + 5000;
+                d.cooldownEndAt = Date.now() + COOLDOWN_MS;
                 d.turnStartAt = null;
             } else {
                 d.phase = "answer";
@@ -605,9 +606,8 @@ export default function DierenspelApp() {
             advanceTurn(d);
             return d;
         });
-        triggerScoreToast("-25 punten (Jilla)", "minus");
+        triggerScoreToast(`-${JILLA_PENALTY} punten (Jilla)`, "minus");
     }
-
 
     async function leaveRoom() {
         if (!roomCode) { setRoom(null); setRoomCode(""); setIsHost(false); return; }
@@ -689,7 +689,6 @@ export default function DierenspelApp() {
         try {
             setApiState({ status: "checking", msg: "Bezig met controleren…" });
 
-            // Gebruik een relatieve URL; werkt lokaal (Vite/CRA) en op Vercel:
             const resp = await fetch(`/api/check-animal?name=${encodeURIComponent(q)}`, {
                 method: "GET",
                 headers: { "Accept": "application/json" }
@@ -712,7 +711,6 @@ export default function DierenspelApp() {
             setApiState({ status: "error", msg: `Netwerkfout: ${String(err)}` });
         }
     }
-
 
     /* ---------- cooldown tick ---------- */
     const inCooldown = room?.phase === "cooldown" && !room?.solo && room?.started;
@@ -742,7 +740,6 @@ export default function DierenspelApp() {
     const potentialPoints = (!room?.solo && room?.started && !room?.paused)
         ? calcPoints(answerElapsedMs)
         : 0;
-
 
     // beginletter validatie voor UI (disable knop + enter)
     const beginsOk = !requiredLetter || firstAlphaLetter(answer) === requiredLetter;
@@ -959,7 +956,6 @@ export default function DierenspelApp() {
                         </ul>
                     </Section>
                 )}
-
 
                 <footer style={styles.foot}>
                     {isOnlineRoom
