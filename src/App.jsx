@@ -709,14 +709,18 @@ export default function DierenspelApp() {
 
     async function checkAnimalViaAPI() {
         const q = (answer || "").trim();
-        if (!q) {
-            setApiState({ status: "idle", msg: "" });
+        if (!q) { setApiState({ status: "idle", msg: "" }); return; }
+
+        // Client-guard: minimaal 2 tekens na simpele normalisatie
+        let cleaned = q.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+        cleaned = cleaned.replace(/[^a-z0-9]/g, "");
+        if (cleaned.length < 2) {
+            setApiState({ status: "notfound", msg: "Voer minimaal 2 tekens in" });
             return;
         }
 
         try {
             setApiState({ status: "checking", msg: "Bezig met controleren…" });
-
             const resp = await fetch(`/api/check-animal?name=${encodeURIComponent(q)}`, {
                 method: "GET",
                 headers: { "Accept": "application/json" }
@@ -739,6 +743,7 @@ export default function DierenspelApp() {
             setApiState({ status: "error", msg: `Netwerkfout: ${String(err)}` });
         }
     }
+
 
     /* ---------- cooldown tick ---------- */
     const inCooldown = room?.phase === "cooldown" && !room?.solo && room?.started;
