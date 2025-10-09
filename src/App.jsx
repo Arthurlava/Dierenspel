@@ -184,11 +184,14 @@ function firstAlphaLetter(word) {
     if (!s) return "";
     return s[0].toUpperCase();
 }
+
+// ✅ FIX: double pof alleen als woord BEGINT én EINDIGT met de vereiste letter
 function isDoublePof(requiredLetter, word) {
-    const s = (word || "").toUpperCase().normalize("NFKD").replace(/[^\p{Letter}]/gu, "");
-    const first = s[0] || "";
-    return requiredLetter && requiredLetter !== "?" && first === requiredLetter;
+    const first = firstAlphaLetter(word);
+    const last = lastAlphaLetter(word);
+    return requiredLetter && requiredLetter !== "?" && first === requiredLetter && last === requiredLetter;
 }
+
 function normalizeAnimalKey(w) {
     return (w || "").toLowerCase().normalize("NFKD").replace(/[^\p{Letter}0-9]/gu, "");
 }
@@ -464,7 +467,7 @@ export default function DierenspelApp() {
         const elapsed = Math.max(0, effectiveNow - startAt);
 
         const basePoints = isMP ? calcPoints(elapsed) : 0;
-        const isDouble = isDoublePof(room?.lastLetter || "?", w);
+        const isDouble = isDoublePof(room?.lastLetter || "?", w); // ✅ nu alleen true bij begin+eind = required
         const bonus = isMP && isDouble ? DOUBLE_POF_BONUS : 0;
         const totalGain = isMP ? (basePoints + bonus) : 0;
 
@@ -890,7 +893,7 @@ export default function DierenspelApp() {
                         </>
                     ) : (
                         <p className="muted center" style={{ marginTop: 4 }}>
-                            Maak of join een room om te spelen.
+                            Maak een room of join er één.
                         </p>
                     )}
                 </div>
