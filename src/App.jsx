@@ -1000,7 +1000,6 @@ useEffect(() => {
                         </div>
                     )}
 
-                    <div className="row">
 {!room?.started && (
   <div className="row">
     <input
@@ -1057,6 +1056,7 @@ useEffect(() => {
     {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
   </div>
 )}
+</div>
 
 
 
