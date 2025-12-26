@@ -1013,7 +1013,6 @@ useEffect(() => {
   </div>
 )}
 
-{/* Acties */}
 {!isOnlineRoom ? (
   <div className="toolbar-scroll">
     <Button onClick={() => createRoom()} disabled={!online || !authReady}>
@@ -1046,23 +1045,20 @@ useEffect(() => {
   </div>
 ) : (
   <div className="row">
-    {!room?.started && isHost && (
-      <Button onClick={startGame}>Start spel</Button>
-    )}
+    {!room?.started && isHost && <Button onClick={startGame}>Start spel</Button>}
     {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
     {room?.started && <span className="badge">Multiplayer actief</span>}
 
     {room?.started && !room?.paused && (
       <Button variant="alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</Button>
     )}
-    {room?.started && room?.paused && (
-      <Button onClick={resumeGame}>▶️ Hervatten</Button>
-    )}
+    {room?.started && room?.paused && <Button onClick={resumeGame}>▶️ Hervatten</Button>}
 
     <Button variant="warn" onClick={onLeaveClick}>Leave</Button>
     {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
   </div>
 )}
+
 
                 {/* Speelveld */}
                 <div className="card" style={{ marginBottom: 12 }}>
