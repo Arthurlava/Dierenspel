@@ -1001,7 +1001,6 @@ useEffect(() => {
                     )}
 
                     <div className="row">
-{/* Naam (alleen vóór start) */}
 {!room?.started && (
   <div className="row">
     <input
@@ -1058,6 +1057,7 @@ useEffect(() => {
     {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
   </div>
 )}
+
 
 
                 {/* Speelveld */}
