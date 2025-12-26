@@ -1012,7 +1012,7 @@ useEffect(() => {
 )}
 
 {!isOnlineRoom ? (
-  <div className="toolbar-scroll">
+  <div className="row">
     <Button onClick={() => createRoom()} disabled={!online || !authReady}>
       Room aanmaken
     </Button>
@@ -1253,46 +1253,46 @@ useEffect(() => {
                                 {roomsErr}
                             </div>
                         )}
-
-                        <table className="table" style={{ marginTop: 4 }}>
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Status</th>
-                                    <th>Spelers</th>
-                                    <th>Host</th>
-                                    <th>Laatste</th>
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {roomsFiltered.length === 0 ? (
-                                    <tr><td colSpan={6} className="muted">Geen rooms gevonden.</td></tr>
-                                ) : roomsFiltered.map((r) => (
-                                    <tr key={r.code}>
-                                        <td><b>{r.code}</b></td>
-                                        <td>{r.started ? "Gestart" : "Open"}</td>
-                                        <td>{r.playersCount}</td>
-                                        <td>{r.hostName}</td>
-                                        <td>{fmtTimeShort(r.createdAtMs)}</td>
-                                        <td style={{ textAlign: "right" }}>
-                                            <Button
-                                                variant="alt"
-                                                onClick={async () => {
-                                                    setRoomCodeInput(r.code);
-                                                    closeRoomsDialog();
-                                                    await joinRoomByCode(r.code);
-                                                }}
-                                                disabled={!online}
-                                            >
-                                                Join
-                                            </Button>
-                                        </td>
+                        <div style={{ maxHeight: "55vh", overflowY: "auto", overflowX: "auto" }}>
+                            <table className="table" style={{ marginTop: 4 }}>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Status</th>
+                                        <th>Spelers</th>
+                                        <th>Host</th>
+                                        <th>Laatste</th>
+                                        <th />
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
+                                </thead>
+                                <tbody>
+                                    {roomsFiltered.length === 0 ? (
+                                        <tr><td colSpan={6} className="muted">Geen rooms gevonden.</td></tr>
+                                    ) : roomsFiltered.map((r) => (
+                                        <tr key={r.code}>
+                                            <td><b>{r.code}</b></td>
+                                            <td>{r.started ? "Gestart" : "Open"}</td>
+                                            <td>{r.playersCount}</td>
+                                            <td>{r.hostName}</td>
+                                            <td>{fmtTimeShort(r.createdAtMs)}</td>
+                                            <td style={{ textAlign: "right" }}>
+                                                <Button
+                                                    variant="alt"
+                                                    onClick={async () => {
+                                                        setRoomCodeInput(r.code);
+                                                        closeRoomsDialog();
+                                                        await joinRoomByCode(r.code);
+                                                    }}
+                                                    disabled={!online}
+                                                >
+                                                    Join
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+</div>
                         <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
                             <Button variant="alt" onClick={closeRoomsDialog}>Sluiten</Button>
                         </div>
