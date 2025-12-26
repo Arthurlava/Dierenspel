@@ -1001,15 +1001,20 @@ useEffect(() => {
                     )}
 
                     <div className="row">
-                        {!room?.started && (
-                            <input
-                                className="input"
-                                placeholder="Jouw naam"
-                                value={playerName}
-                                onChange={e => setPlayerName(e.target.value)}
-                            />
-                        )}
-                       {!isOnlineRoom ? (
+{/* Naam (alleen vóór start) */}
+{!room?.started && (
+  <div className="row">
+    <input
+      className="input"
+      placeholder="Jouw naam"
+      value={playerName}
+      onChange={e => setPlayerName(e.target.value)}
+    />
+  </div>
+)}
+
+{/* Acties */}
+{!isOnlineRoom ? (
   <div className="toolbar-scroll">
     <Button onClick={() => createRoom()} disabled={!online || !authReady}>
       Room aanmaken
@@ -1041,22 +1046,25 @@ useEffect(() => {
   </div>
 ) : (
   <div className="row">
-    {/* bestaande in-room knoppen */}
-    {!room?.started && isHost && <Button onClick={startGame}>Start spel</Button>}
+    {!room?.started && isHost && (
+      <Button onClick={startGame}>Start spel</Button>
+    )}
     {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
     {room?.started && <span className="badge">Multiplayer actief</span>}
 
     {room?.started && !room?.paused && (
       <Button variant="alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</Button>
     )}
-    {room?.started && room?.paused && <Button onClick={resumeGame}>▶️ Hervatten</Button>}
+    {room?.started && room?.paused && (
+      <Button onClick={resumeGame}>▶️ Hervatten</Button>
+    )}
 
     <Button variant="warn" onClick={onLeaveClick}>Leave</Button>
     {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
   </div>
 )}
 
-
+</div>
                 {/* Speelveld */}
                 <div className="card" style={{ marginBottom: 12 }}>
                     <div className="center">
