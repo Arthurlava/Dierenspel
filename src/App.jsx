@@ -135,7 +135,32 @@ const GlobalStyle = () => (
   .table { width:100%; border-collapse: collapse; }
   .table th, .table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
   .table th { font-weight: 700; }
+    .toolbar-scroll {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+
+    padding: 6px 2px;
+    margin: 0 -2px;
+    scrollbar-width: none;
+  }
+  .toolbar-scroll::-webkit-scrollbar { display: none; }
+
+  .toolbar-scroll > * {
+    flex: 0 0 auto;
+  }
+
+  .toolbar-scroll .input {
+    width: 180px;
+  }
   `}</style>
+    
 );
 
 const styles = {
@@ -984,59 +1009,53 @@ useEffect(() => {
                                 onChange={e => setPlayerName(e.target.value)}
                             />
                         )}
-                        {!isOnlineRoom ? (
-                          <>
-                            <Button onClick={() => createRoom()} disabled={!online || !authReady}>
-                              Room aanmaken
-                            </Button>
-                        
-                            <input
-                              className="input"
-                              placeholder="Room code"
-                              value={roomCodeInput}
-                              onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                              onKeyDown={(e) => { if (e.key === "Enter" && online && authReady) joinRoom(); }}
-                            />
-                        
-                            <Button variant="alt" onClick={joinRoom} disabled={!online || !authReady}>
-                              Join
-                            </Button>
-                        
-                            <Button variant="alt" onClick={openRoomsDialog} disabled={!online || !authReady}>
-                              Rooms bekijken
-                            </Button>
-                        
-                            <Button variant="alt" href="https://pimpampof.vercel.app">
-                              pimpampof.vercel.app ↗
-                            </Button>
-                          </>
-                        ) : (
+                       {!isOnlineRoom ? (
+  <div className="toolbar-scroll">
+    <Button onClick={() => createRoom()} disabled={!online || !authReady}>
+      Room aanmaken
+    </Button>
 
+    <input
+      className="input"
+      placeholder="Room code"
+      value={roomCodeInput}
+      onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+      onKeyDown={(e) => { if (e.key === "Enter" && online && authReady) joinRoom(); }}
+    />
 
+    <Button variant="alt" onClick={joinRoom} disabled={!online || !authReady}>
+      Join
+    </Button>
 
-                            <>
-                                {!room?.started && isHost && (
-                                    <Button onClick={startGame}>Start spel</Button>
-                                )}
-                                {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
-                                {room?.started && <span className="badge">Multiplayer actief</span>}
+    <Button variant="alt" onClick={openRoomsDialog} disabled={!online || !authReady}>
+      Rooms bekijken
+    </Button>
 
-                                {room?.started && !room?.paused && (
-                                    <Button variant="alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</Button>
-                                )}
-                                {room?.started && room?.paused && (
-                                    <Button onClick={resumeGame}>▶️ Hervatten</Button>
-                                )}
-                                <Button variant="warn" onClick={onLeaveClick}>Leave</Button>
-                                {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
-                            </>
-                        )}
+    <Button variant="alt" href="https://pimpampof.vercel.app">
+      pimpampof.vercel.app ↗
+    </Button>
 
-                        {!online && !isOnlineRoom && (
-                            <span className="badge">Offline: maak verbinding om te spelen</span>
-                        )}
-                    </div>
-                </div>
+    {!online && (
+      <span className="badge">Offline: maak verbinding om te spelen</span>
+    )}
+  </div>
+) : (
+  <div className="row">
+    {/* bestaande in-room knoppen */}
+    {!room?.started && isHost && <Button onClick={startGame}>Start spel</Button>}
+    {!room?.started && !isHost && <span className="badge">Wachten op host…</span>}
+    {room?.started && <span className="badge">Multiplayer actief</span>}
+
+    {room?.started && !room?.paused && (
+      <Button variant="alt" onClick={pauseGame}>⏸️ Pauzeer (iedereen)</Button>
+    )}
+    {room?.started && room?.paused && <Button onClick={resumeGame}>▶️ Hervatten</Button>}
+
+    <Button variant="warn" onClick={onLeaveClick}>Leave</Button>
+    {!room?.started && <span className="badge">Room: <b>{roomCode}</b></span>}
+  </div>
+)}
+
 
                 {/* Speelveld */}
                 <div className="card" style={{ marginBottom: 12 }}>
