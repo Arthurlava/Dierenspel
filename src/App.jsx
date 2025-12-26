@@ -1064,7 +1064,6 @@ useEffect(() => {
   </div>
 )}
 
-</div>
                 {/* Speelveld */}
                 <div className="card" style={{ marginBottom: 12 }}>
                     <div className="center">
