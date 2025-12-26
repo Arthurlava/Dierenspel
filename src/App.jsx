@@ -1,5 +1,6 @@
 // src/App.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { initializeApp, getApp, getApps } from "firebase/app";
 import {
     getDatabase, ref, onValue, set, update, get, runTransaction, serverTimestamp,
@@ -29,6 +30,7 @@ const firebaseConfig = {
 };
 
 const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
 const db = getDatabase(firebaseApp);
 
 /* =========================
@@ -254,6 +256,19 @@ function Button({ children, variant, className = "", href, ...props }) {
    COMPONENT
 ========================= */
 export default function DierenspelApp() {
+    const [authReady, setAuthReady] = useState(false);
+
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, (u) => {
+    if (u) { setAuthReady(true); return; }
+    signInAnonymously(auth).catch((e) => {
+      console.error("Anonymous sign-in failed", e);
+      setAuthReady(false);
+    });
+  });
+  return () => unsub();
+}, []);
+
     const online = useOnline();
     useEffect(() => { document.title = SITE_TITLE; }, []);
 
@@ -972,12 +987,8 @@ export default function DierenspelApp() {
 
                         {!isOnlineRoom ? (
                             <>
-                                <Button onClick={() => createRoom()} disabled={!online}>Room aanmaken</Button>
-
-                                <Button variant="alt" onClick={openRoomsDialog} disabled={!online}>
-                                    Rooms bekijken
-                                </Button>
-
+<Button onClick={() => createRoom()} disabled={!online || !authReady}>Room aanmaken</Button>
+<Button variant="alt" onClick={joinRoom} disabled={!online || !authReady}>Join</Button>
                                 <input
                                     className="input"
                                     placeholder="Room code"
