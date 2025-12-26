@@ -1,9 +1,9 @@
-﻿// src/App.jsx
+// src/App.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import {
     getDatabase, ref, onValue, set, update, get, runTransaction, serverTimestamp,
-    onDisconnect, remove
+    onDisconnect, remove, query, orderByChild, limitToLast
 } from "firebase/database";
 
 /* =========================
@@ -27,7 +27,8 @@ const firebaseConfig = {
     messagingSenderId: "872484746189",
     appId: "1:872484746189:web:a76c7345c4f2ebb6790a84"
 };
-const firebaseApp = initializeApp(firebaseConfig);
+
+const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
 
 /* =========================
@@ -208,6 +209,20 @@ function randomEasyConsonant() {
     return EASY_CONSONANTS[Math.floor(Math.random() * EASY_CONSONANTS.length)];
 }
 
+function toMillis(ts) {
+    if (typeof ts === "number") return ts;
+    return 0;
+}
+
+function fmtTimeShort(ms) {
+    if (!ms) return "—";
+    try {
+        return new Date(ms).toLocaleString(undefined, { hour: "2-digit", minute: "2-digit" });
+    } catch {
+        return "—";
+    }
+}
+
 /* =========================
    SMALL UI
 ========================= */
@@ -235,7 +250,6 @@ function Button({ children, variant, className = "", href, ...props }) {
     );
 }
 
-
 /* =========================
    COMPONENT
 ========================= */
@@ -254,6 +268,15 @@ export default function DierenspelApp() {
     const [isHost, setIsHost] = useState(false);
     const [answer, setAnswer] = useState("");
     const [apiState, setApiState] = useState({ status: "idle", msg: "" });
+    const [roomOp, setRoomOp] = useState({ status: "idle", msg: "" });
+
+    // rooms browse (zoals pimpampof)
+    const [roomsOpen, setRoomsOpen] = useState(false);
+    const [roomsLoading, setRoomsLoading] = useState(false);
+    const [roomsErr, setRoomsErr] = useState("");
+    const [roomsList, setRoomsList] = useState([]);
+    const [roomsSearch, setRoomsSearch] = useState("");
+    const [roomsShowAll, setRoomsShowAll] = useState(false);
 
     // timers/toasts
     const [now, setNow] = useState(() => Date.now());
@@ -271,6 +294,8 @@ export default function DierenspelApp() {
     const connIdRef = useRef(null);
     const inputRef = useRef(null);
     const roomRef = useRef(null);
+    const roomUnsubRef = useRef(null);
+    const roomsListUnsubRef = useRef(null);
 
     useEffect(() => { const id = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(id); }, []);
 
@@ -300,7 +325,7 @@ export default function DierenspelApp() {
                 const connId = crypto.randomUUID();
                 connIdRef.current = connId;
                 const myConnRef = ref(db, `rooms/${roomCode}/presence/${playerId}/${connId}`);
-                set(myConnRef, serverTimestamp());
+                set(myConnRef, serverTimestamp()).catch(() => { });
                 onDisconnect(myConnRef).remove();
             }
         });
@@ -316,13 +341,17 @@ export default function DierenspelApp() {
 
     /* ---------- listen room ----------- */
     function attachRoomListener(code) {
-        if (roomRef.current) roomRef.current = null;
-        const r = ref(db, `rooms/${code}`);
-        roomRef.current = r;
-        onValue(r, (snap) => {
+        if (roomUnsubRef.current) {
+            roomUnsubRef.current();
+            roomUnsubRef.current = null;
+        }
+        roomRef.current = ref(db, `rooms/${code}`);
+        roomUnsubRef.current = onValue(roomRef.current, (snap) => {
             const data = snap.val() ?? null;
             setRoom(data);
             setIsHost(!!data && data.hostId === playerId);
+        }, () => {
+            setRoomOp({ status: "error", msg: "Kon room niet volgen (toegang/netwerk)." });
         });
     }
 
@@ -340,10 +369,66 @@ export default function DierenspelApp() {
         return () => clearTimeout(t);
     }, [room?.answers, playerId]);
 
+    /* ---------- rooms browse (pimpampof-style) ----------- */
+    function closeRoomsDialog() {
+        setRoomsOpen(false);
+        setRoomsErr("");
+    }
+
+    function openRoomsDialog() {
+        if (!online) return;
+        setRoomsOpen(true);
+        setRoomsErr("");
+        setRoomsLoading(true);
+
+        if (roomsListUnsubRef.current) {
+            roomsListUnsubRef.current();
+            roomsListUnsubRef.current = null;
+        }
+
+        const q = query(ref(db, "rooms"), orderByChild("createdAt"), limitToLast(80));
+        roomsListUnsubRef.current = onValue(q, (snap) => {
+            const arr = [];
+            snap.forEach((child) => {
+                const v = child.val();
+                if (!v) return;
+                const code = child.key || "";
+                const playersCount = v.players ? Object.keys(v.players).length : 0;
+                arr.push({
+                    code,
+                    createdAtMs: toMillis(v.createdAt),
+                    started: !!v.started,
+                    hostId: v.hostId || null,
+                    hostName: v.players?.[v.hostId]?.name || v.participants?.[v.hostId]?.name || "Host",
+                    playersCount,
+                    version: v.version || 0
+                });
+            });
+
+            arr.sort((a, b) => (b.createdAtMs - a.createdAtMs) || (b.playersCount - a.playersCount) || a.code.localeCompare(b.code));
+            setRoomsList(arr);
+            setRoomsLoading(false);
+        }, (err) => {
+            setRoomsErr(String(err));
+            setRoomsLoading(false);
+        });
+    }
+
+    useEffect(() => {
+        if (!roomsOpen && roomsListUnsubRef.current) {
+            roomsListUnsubRef.current();
+            roomsListUnsubRef.current = null;
+            setRoomsLoading(false);
+        }
+    }, [roomsOpen]);
+
     /* ---------- actions ----------- */
     async function createRoom({ solo = false } = {}) {
-        const code = makeRoomCode();
-        const obj = {
+        if (!online) return;
+
+        setRoomOp({ status: "checking", msg: "Room aanmaken…" });
+
+        const baseObj = {
             createdAt: serverTimestamp(),
             hostId: playerId,
             players: { [playerId]: { name: playerName || "Host", joinedAt: serverTimestamp() } },
@@ -365,52 +450,89 @@ export default function DierenspelApp() {
             phase: "answer",
             version: 3
         };
-        await set(ref(db, `rooms/${code}`), obj);
-        setIsHost(true);
-        setRoomCode(code);
-        attachRoomListener(code);
+
+        try {
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const code = makeRoomCode();
+                const r = ref(db, `rooms/${code}`);
+
+                const tx = await runTransaction(r, (cur) => {
+                    if (cur != null) return;
+                    return baseObj;
+                }, { applyLocally: false });
+
+                if (tx.committed) {
+                    setIsHost(true);
+                    setRoomCode(code);
+                    attachRoomListener(code);
+                    setRoomOp({ status: "idle", msg: "" });
+                    return;
+                }
+            }
+
+            setRoomOp({ status: "error", msg: "Kon geen unieke roomcode maken. Probeer opnieuw." });
+        } catch (e) {
+            setRoomOp({ status: "error", msg: `Room aanmaken mislukt: ${String(e)}` });
+        }
+    }
+
+    async function joinRoomByCode(codeRaw) {
+        const code = (codeRaw || "").trim().toUpperCase();
+        if (!code) { alert("Voer een room code in."); return; }
+        if (!online) return;
+
+        setRoomOp({ status: "checking", msg: "Joinen…" });
+
+        const r = ref(db, `rooms/${code}`);
+
+        try {
+            const snap = await get(r);
+            if (!snap.exists()) {
+                setRoomOp({ status: "error", msg: "Room niet gevonden." });
+                return;
+            }
+
+            await runTransaction(r, (data) => {
+                if (!data) return data;
+                data.players ??= {};
+                data.players[playerId] = { name: playerName || "Speler", joinedAt: serverTimestamp() };
+
+                data.participants ??= {};
+                data.participants[playerId] = data.participants[playerId] || { name: playerName || "Speler", firstJoinedAt: serverTimestamp() };
+                data.participants[playerId].name = playerName || data.participants[playerId].name;
+
+                data.playersOrder ??= [];
+                if (!data.playersOrder.includes(playerId)) data.playersOrder.push(playerId);
+
+                data.scores ??= {};
+                data.stats ??= {};
+                data.answers ??= [];
+                data.used ??= {};
+                data.jail ??= {};
+                data.lastLetter ??= "?";
+                data.paused ??= false;
+                data.pausedAt ??= null;
+
+                if (!data.phase) data.phase = "answer";
+                if (!data.started) { data.turnStartAt = null; data.cooldownEndAt = null; }
+
+                if (!data.turn || !data.players[data.turn]) data.turn = data.playersOrder[0] || playerId;
+                if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder[0] || playerId;
+
+                return data;
+            }, { applyLocally: false });
+
+            setIsHost(false);
+            setRoomCode(code);
+            attachRoomListener(code);
+            setRoomOp({ status: "idle", msg: "" });
+        } catch (e) {
+            setRoomOp({ status: "error", msg: `Join mislukt: ${String(e)}` });
+        }
     }
 
     async function joinRoom() {
-        const code = (roomCodeInput || "").trim().toUpperCase();
-        if (!code) { alert("Voer een room code in."); return; }
-        const r = ref(db, `rooms/${code}`);
-        const snap = await get(r);
-        if (!snap.exists()) { alert("Room niet gevonden."); return; }
-
-        await runTransaction(r, (data) => {
-            if (!data) return data;
-            data.players ??= {};
-            data.players[playerId] = { name: playerName || "Speler", joinedAt: serverTimestamp() };
-
-            data.participants ??= {};
-            data.participants[playerId] = data.participants[playerId] || { name: playerName || "Speler", firstJoinedAt: serverTimestamp() };
-            data.participants[playerId].name = playerName || data.participants[playerId].name;
-
-            data.playersOrder ??= [];
-            if (!data.playersOrder.includes(playerId)) data.playersOrder.push(playerId);
-
-            data.scores ??= {};
-            data.stats ??= {};
-            data.answers ??= [];
-            data.used ??= {};
-            data.jail ??= {};
-            data.lastLetter ??= "?";
-            data.paused ??= false;
-            data.pausedAt ??= null;
-
-            if (!data.phase) data.phase = "answer";
-            if (!data.started) { data.turnStartAt = null; data.cooldownEndAt = null; }
-
-            if (!data.turn || !data.players[data.turn]) data.turn = data.playersOrder[0] || playerId;
-            if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder[0] || playerId;
-
-            return data;
-        });
-
-        setIsHost(false);
-        setRoomCode(code);
-        attachRoomListener(code);
+        await joinRoomByCode(roomCodeInput);
     }
 
     // eerste beginletter = random makkelijke medeklinker (zonder X/Y/Z/Q)
@@ -569,7 +691,7 @@ export default function DierenspelApp() {
 
             accepted = true;
             return data;
-        });
+        }, { applyLocally: false });
 
         if (!accepted) {
             setApiState({ status: "error", msg: `Moet beginnen met ${req || "?"}` });
@@ -645,7 +767,7 @@ export default function DierenspelApp() {
 
             advanceTurn(d);
             return d;
-        });
+        }, { applyLocally: false });
 
         triggerScoreToast(`-${JILLA_PENALTY} punten (Jilla)`, "minus");
     }
@@ -653,23 +775,34 @@ export default function DierenspelApp() {
     async function leaveRoom() {
         if (!roomCode) { setRoom(null); setRoomCode(""); setIsHost(false); return; }
         const r = ref(db, `rooms/${roomCode}`);
-        await runTransaction(r, (data) => {
-            if (!data) return data;
-            if (data.players && data.players[playerId]) delete data.players[playerId];
-            if (data.jail && data.jail[playerId] != null) delete data.jail[playerId];
-            if (Array.isArray(data.playersOrder)) data.playersOrder = data.playersOrder.filter(id => id !== playerId && data.players && data.players[id]);
-            const ids = data.players ? Object.keys(data.players) : [];
-            if (ids.length === 0) return null;
-            if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder?.[0] || ids[0];
-            if (!data.turn || !data.players[data.turn] || data.turn === playerId) data.turn = data.playersOrder?.[0] || data.hostId || ids[0];
-            return data;
-        });
+
+        try {
+            await runTransaction(r, (data) => {
+                if (!data) return data;
+                if (data.players && data.players[playerId]) delete data.players[playerId];
+                if (data.jail && data.jail[playerId] != null) delete data.jail[playerId];
+                if (Array.isArray(data.playersOrder)) data.playersOrder = data.playersOrder.filter(id => id !== playerId && data.players && data.players[id]);
+                const ids = data.players ? Object.keys(data.players) : [];
+                if (ids.length === 0) return null;
+                if (!data.hostId || !data.players[data.hostId]) data.hostId = data.playersOrder?.[0] || ids[0];
+                if (!data.turn || !data.players[data.turn] || data.turn === playerId) data.turn = data.playersOrder?.[0] || data.hostId || ids[0];
+                return data;
+            }, { applyLocally: false });
+        } catch {
+            // ignore
+        }
 
         if (connIdRef.current) {
             const myConnRef = ref(db, `rooms/${roomCode}/presence/${playerId}/${connIdRef.current}`);
             remove(myConnRef).catch(() => { });
             connIdRef.current = null;
         }
+
+        if (roomUnsubRef.current) {
+            roomUnsubRef.current();
+            roomUnsubRef.current = null;
+        }
+
         setRoom(null); setRoomCode(""); setIsHost(false);
     }
 
@@ -695,7 +828,7 @@ export default function DierenspelApp() {
             d.paused = true;
             d.pausedAt = Date.now();
             return d;
-        });
+        }, { applyLocally: false });
     }
 
     async function resumeGame() {
@@ -708,7 +841,7 @@ export default function DierenspelApp() {
             d.paused = false;
             d.pausedAt = null;
             return d;
-        });
+        }, { applyLocally: false });
     }
 
     async function onLeaveClick() {
@@ -757,9 +890,6 @@ export default function DierenspelApp() {
         }
     }
 
-
-
-
     /* ---------- cooldown tick ---------- */
     const inCooldown = room?.phase === "cooldown" && !room?.solo && room?.started;
     const cooldownLeftMs = Math.max(0, (room?.cooldownEndAt || 0) - now);
@@ -776,7 +906,7 @@ export default function DierenspelApp() {
                 data.phase = "answer";
                 data.turnStartAt = Date.now();
                 return data;
-            });
+            }, { applyLocally: false });
         }
     }, [roomCode, room?.phase, room?.cooldownEndAt, room?.paused, room?.started, now, room]);
 
@@ -793,6 +923,13 @@ export default function DierenspelApp() {
     const beginsOk = !requiredLetter || firstAlphaLetter(answer) === requiredLetter;
     const canSubmit = isMyTurn && !inCooldown && !room?.paused && room?.started && beginsOk;
 
+    const roomsFiltered = useMemo(() => {
+        const s = (roomsSearch || "").trim().toUpperCase();
+        const base = roomsShowAll ? roomsList : roomsList.filter(r => !r.started);
+        if (!s) return base;
+        return base.filter(r => r.code.includes(s));
+    }, [roomsList, roomsSearch, roomsShowAll]);
+
     /* ---------- UI ---------- */
     return (
         <>
@@ -804,6 +941,25 @@ export default function DierenspelApp() {
                     <p className="muted" style={{ marginTop: 0 }}>
                         Typ een dier. Het moet beginnen met de <b>vereiste beginletter</b>. De volgende beginletter wordt de <b>laatste letter</b> van jouw woord.
                     </p>
+
+                    {roomOp.status !== "idle" && (
+                        <div className="center" style={{ marginBottom: 10 }}>
+                            <span
+                                className="badge"
+                                style={{
+                                    background:
+                                        roomOp.status === "checking" ? "rgba(59,130,246,.12)" :
+                                            "rgba(239,68,68,.12)",
+                                    borderColor:
+                                        roomOp.status === "checking" ? "rgba(59,130,246,.35)" :
+                                            "rgba(239,68,68,.35)"
+                                }}
+                            >
+                                {roomOp.msg}
+                            </span>
+                        </div>
+                    )}
+
                     <div className="row">
                         {!room?.started && (
                             <input
@@ -817,6 +973,11 @@ export default function DierenspelApp() {
                         {!isOnlineRoom ? (
                             <>
                                 <Button onClick={() => createRoom()} disabled={!online}>Room aanmaken</Button>
+
+                                <Button variant="alt" onClick={openRoomsDialog} disabled={!online}>
+                                    Rooms bekijken
+                                </Button>
+
                                 <input
                                     className="input"
                                     placeholder="Room code"
@@ -853,7 +1014,6 @@ export default function DierenspelApp() {
                             <span className="badge">Offline: maak verbinding om te spelen</span>
                         )}
                     </div>
-
                 </div>
 
                 {/* Speelveld */}
@@ -1016,6 +1176,85 @@ export default function DierenspelApp() {
                         : "Maak een room of join er één."}
                 </footer>
             </div>
+
+            {/* Rooms bekijken overlay */}
+            {roomsOpen && (
+                <div className="overlay" onClick={closeRoomsDialog}>
+                    <div className="dialog" onClick={e => e.stopPropagation()}>
+                        <h2 style={{ marginTop: 0, marginBottom: 10 }}>Rooms</h2>
+
+                        <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+                            <input
+                                className="input"
+                                placeholder="Zoek code (bijv. AB12C)"
+                                value={roomsSearch}
+                                onChange={(e) => setRoomsSearch(e.target.value.toUpperCase())}
+                                style={{ minWidth: 220 }}
+                            />
+
+                            <label className="badge" style={{ cursor: "pointer" }}>
+                                <input
+                                    type="checkbox"
+                                    checked={roomsShowAll}
+                                    onChange={(e) => setRoomsShowAll(e.target.checked)}
+                                    style={{ marginRight: 8 }}
+                                />
+                                Toon ook gestarte rooms
+                            </label>
+                        </div>
+
+                        {roomsLoading && <div className="muted" style={{ marginBottom: 10 }}>Laden…</div>}
+                        {roomsErr && (
+                            <div className="badge" style={{ background: "rgba(239,68,68,.12)", borderColor: "rgba(239,68,68,.35)", marginBottom: 10 }}>
+                                {roomsErr}
+                            </div>
+                        )}
+
+                        <table className="table" style={{ marginTop: 4 }}>
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Status</th>
+                                    <th>Spelers</th>
+                                    <th>Host</th>
+                                    <th>Laatste</th>
+                                    <th />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {roomsFiltered.length === 0 ? (
+                                    <tr><td colSpan={6} className="muted">Geen rooms gevonden.</td></tr>
+                                ) : roomsFiltered.map((r) => (
+                                    <tr key={r.code}>
+                                        <td><b>{r.code}</b></td>
+                                        <td>{r.started ? "Gestart" : "Open"}</td>
+                                        <td>{r.playersCount}</td>
+                                        <td>{r.hostName}</td>
+                                        <td>{fmtTimeShort(r.createdAtMs)}</td>
+                                        <td style={{ textAlign: "right" }}>
+                                            <Button
+                                                variant="alt"
+                                                onClick={async () => {
+                                                    setRoomCodeInput(r.code);
+                                                    closeRoomsDialog();
+                                                    await joinRoomByCode(r.code);
+                                                }}
+                                                disabled={!online}
+                                            >
+                                                Join
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+                            <Button variant="alt" onClick={closeRoomsDialog}>Sluiten</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Dubble pof! overlay */}
             {pofShow && (
