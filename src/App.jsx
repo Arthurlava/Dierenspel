@@ -984,25 +984,36 @@ useEffect(() => {
                                 onChange={e => setPlayerName(e.target.value)}
                             />
                         )}
-
                         {!isOnlineRoom ? (
-                            <>
-<Button onClick={() => createRoom()} disabled={!online || !authReady}>Room aanmaken</Button>
-<Button variant="alt" onClick={joinRoom} disabled={!online || !authReady}>Join</Button>
-                                <input
-                                    className="input"
-                                    placeholder="Room code"
-                                    value={roomCodeInput}
-                                    onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
-                                />
-                                <Button variant="alt" onClick={joinRoom} disabled={!online}>Join</Button>
-
-                                {/* ⬇️ Alleen op het startscherm tonen */}
-                                <Button variant="alt" href="https://pimpampof.vercel.app">
-                                    pimpampof.vercel.app ↗
-                                </Button>
-                            </>
+                          <>
+                            <Button onClick={() => createRoom()} disabled={!online || !authReady}>
+                              Room aanmaken
+                            </Button>
+                        
+                            <input
+                              className="input"
+                              placeholder="Room code"
+                              value={roomCodeInput}
+                              onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                              onKeyDown={(e) => { if (e.key === "Enter" && online && authReady) joinRoom(); }}
+                            />
+                        
+                            <Button variant="alt" onClick={joinRoom} disabled={!online || !authReady}>
+                              Join
+                            </Button>
+                        
+                            <Button variant="alt" onClick={openRoomsDialog} disabled={!online || !authReady}>
+                              Rooms bekijken
+                            </Button>
+                        
+                            <Button variant="alt" href="https://pimpampof.vercel.app">
+                              pimpampof.vercel.app ↗
+                            </Button>
+                          </>
                         ) : (
+
+
+
                             <>
                                 {!room?.started && isHost && (
                                     <Button onClick={startGame}>Start spel</Button>
